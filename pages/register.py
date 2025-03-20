@@ -50,14 +50,13 @@ address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Ente
 
 # ✅ Province (อยู่นอก form เพื่อให้ค่าถูกอัปเดตทันที)
 province_names = ["Select Province"] + provinces["name_th"].tolist()
-selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province))
+selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province), key="province")
 
 # ✅ ถ้า Province เปลี่ยนค่า ให้รีเซ็ต District และ Subdistrict
 if selected_province != st.session_state.selected_province:
     st.session_state.selected_province = selected_province
     st.session_state.selected_district = "Select District"
     st.session_state.selected_subdistrict = "Select Subdistrict"
-    st.experimental_rerun()
 
 # ✅ District (กรองตามจังหวัดที่เลือก)
 if selected_province != "Select Province":
@@ -66,13 +65,12 @@ if selected_province != "Select Province":
 else:
     filtered_districts = ["Select District"]
 
-selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district))
+selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district), key="district")
 
 # ✅ ถ้า District เปลี่ยนค่า ให้รีเซ็ต Subdistrict
 if selected_district != st.session_state.selected_district:
     st.session_state.selected_district = selected_district
     st.session_state.selected_subdistrict = "Select Subdistrict"
-    st.experimental_rerun()
 
 # ✅ Subdistrict & Zip Code (กรองตามอำเภอที่เลือก)
 if selected_district != "Select District":
@@ -85,12 +83,7 @@ else:
     subdistrict_names = ["Select Subdistrict"]
     zip_codes = [""]
 
-selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict))
-
-# ✅ ถ้า Subdistrict เปลี่ยนค่า ให้รีเฟรชค่า Zip Code
-if selected_subdistrict != st.session_state.selected_subdistrict:
-    st.session_state.selected_subdistrict = selected_subdistrict
-    st.experimental_rerun()
+selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict), key="subdistrict")
 
 zip_code = zip_codes[subdistrict_names.index(selected_subdistrict)] if selected_subdistrict != "Select Subdistrict" else ""
 st.text_input("Zip Code *", zip_code, disabled=True)
