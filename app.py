@@ -37,62 +37,84 @@ if "email" not in st.session_state:
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
 
+# ✅ เพิ่ม Custom CSS เพื่อทำให้ UI สวยขึ้น
+st.markdown("""
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        .stTextInput, .stButton {
+            margin-bottom: 15px;
+        }
+        .login-title {
+            font-size: 26px;
+            font-weight: bold;
+            color: #4F8BF9;
+        }
+        .login-subtitle {
+            font-size: 16px;
+            color: #6c757d;
+        }
+        .login-btn {
+            background-color: #4F8BF9 !important;
+            color: white !important;
+            width: 100%;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .login-btn:hover {
+            background-color: #357ABD !important;
+        }
+        .login-footer {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 15px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ✅ LOGO & TITLE
 st.image("image.png", width=150)  # แสดงโลโก้
-st.title("FAST LABOR")
+st.markdown('<div class="login-title">FAST LABOR</div>', unsafe_allow_html=True)
+st.markdown('<div class="login-subtitle">FAST JOB, FULL TRUST, GREAT WORKER</div>', unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
-st.markdown("### About")
-st.write("""
-**FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER**  
-แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ  
-เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย
-""")
+# ✅ กล่อง Login แบบสวยงาม
+with st.container():
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
-# ✅ ฟังก์ชันตรวจสอบการล็อกอิน
-def check_login(email, password):
-    for index, row in df.iterrows():
-        if row["email"] == email and row["password"] == password:
-            return True
-    return False
+    # ✅ ฟอร์ม Login
+    email = st.text_input("Email address/Username", placeholder="email@example.com")
+    password = st.text_input("Password", type="password", placeholder="Enter your password")
 
-# ✅ ถ้าผู้ใช้ล็อกอินแล้วให้แสดงหน้า Dashboard
-if st.session_state["logged_in"]:
-    st.success(f"✅ Logged in as {st.session_state['email']}")
+    # ✅ ปุ่ม Login
+    if st.button("Login", key="login_btn", help="Click to login", use_container_width=True):
+        if email and password:
+            if email in df["email"].values and df[df["email"] == email]["password"].values[0] == password:
+                st.session_state["logged_in"] = True
+                st.session_state["email"] = email
+                st.success(f"✅ Welcome, {email}!")
 
-    # ปุ่มไปหน้า Home
-    st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
+                # ✅ เปลี่ยนไปหน้า Home
+                st.switch_page("pages/home.py")
+            else:
+                st.error("❌ Invalid email or password. Please try again.")
+        else:
+            st.warning("⚠️ กรุณากรอกข้อมูลให้ครบ")
 
-    # ปุ่ม Logout
-    if st.button("Logout"):
-        st.session_state["logged_in"] = False
-        st.session_state["email"] = None
-        st.experimental_rerun()
+    # ✅ ลิงก์ไปยัง Forget Password
+    st.page_link("pages/reset_password.py", label="🔑 Forget password?", icon="🔑")
 
-    st.stop()
+    st.markdown('<div class="login-footer">or</div>', unsafe_allow_html=True)
 
-# ✅ ฟอร์ม Login
-st.markdown("## LOGIN")
-email = st.text_input("Email address/Username", placeholder="email@example.com")
-password = st.text_input("Password", type="password", placeholder="Enter your password")
+    # ✅ ปุ่ม Register
+    st.page_link("pages/register.py", label="📝 New Register", icon="📝")
 
-col1, col2 = st.columns([1, 3])
-with col1:
-    login_button = st.button("Submit")
-with col2:
-    st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
-
-st.markdown("---")
-st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
-
-st.page_link("pages/register.py", label="New Register", icon="📝")
-
-# ✅ ตรวจสอบข้อมูลที่ผู้ใช้ป้อน
-if login_button:
-    if check_login(email, password):
-        st.session_state["logged_in"] = True
-        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
-        st.success(f"Welcome, {email}!")
-
-        # ✅ เปลี่ยนไปหน้า Home
-        st.switch_page("pages/home.py")
-    else:
-        st.error("❌ Invalid email or password. Please try again.")
+    st.markdown('</div>', unsafe_allow_html=True)
