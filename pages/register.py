@@ -33,6 +33,10 @@ st.markdown("""
             content: " *";
             color: red;
         }
+        .stButton>button[disabled] {
+            background-color: #ccc !important;
+            cursor: not-allowed !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,18 +64,24 @@ with st.form(key="register_form"):
     email = st.text_input("Email address", placeholder="Enter your email", key="email")
     password = st.text_input("Password", type="password", placeholder="Enter your password", key="password")
 
-    submit_button = st.form_submit_button("Submit")
+    # ✅ เช็คว่ากรอกข้อมูลครบหรือยัง
+    all_fields_filled = all([first_name, last_name, national_id, str(dob), gender, nationality,
+                            address, province, district, subdistrict, zip_code, email, password])
 
-# ✅ เช็คว่าผู้ใช้กรอกข้อมูลครบหรือไม่
+    if not all_fields_filled:
+        st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
+
+    # ✅ ปุ่ม Submit (ปิดใช้งานถ้ายังกรอกไม่ครบ)
+    submit_button = st.form_submit_button("Submit", disabled=not all_fields_filled)
+
+# ✅ ถ้ากรอกครบและกด Submit ให้บันทึกข้อมูลลง Google Sheets
 if submit_button:
-    if first_name and last_name and national_id and email and password:
-        # ✅ บันทึกข้อมูลลง Google Sheets
+    try:
         sheet.append_row([first_name, last_name, national_id, str(dob), gender, nationality,
                           address, province, district, subdistrict, zip_code, email, password])
-        
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
-    else:
-        st.error("⚠️ กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบ")
+    except Exception as e:
+        st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
 
 # ✅ ปุ่มกลับไปหน้าล็อกอิน
 st.page_link("app.py", label="⬅️ Back to Login", icon="🔙")
