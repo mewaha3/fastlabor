@@ -22,12 +22,13 @@ def main():
     with col1:
         login_button = st.button("Submit")
     with col2:
-        st.markdown('<a href="#" style="color:red; font-size:12px;">Forget password?</a>', unsafe_allow_html=True)
+        # ✅ Link to Reset Password Page
+        st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
 
     st.markdown("---")
     st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
 
-    # ✅ Use `st.page_link()` to navigate to the Register Page
+    # ✅ Link to Register Page
     st.page_link("pages/register.py", label="New Register", icon="📝")
 
     # Authentication logic (Mock database)
