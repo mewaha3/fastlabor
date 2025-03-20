@@ -19,7 +19,7 @@ def load_location_data():
 
 provinces, districts, subdistricts = load_location_data()
 
-# ✅ ตั้งค่า Google Sheets API (ใช้ st.secrets)
+# ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
@@ -36,7 +36,7 @@ try:
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
-    # ✅ ตรวจสอบคอลัมน์ให้ตรงกับที่เราต้องการ
+    # ✅ ตรวจสอบโครงสร้างคอลัมน์
     required_columns = [
         "First Name", "Last Name", "National ID", "DOB", "Gender", "Nationality",
         "Address", "Province", "District", "Subdistrict", "Zip Code",
@@ -104,11 +104,17 @@ if st.button("Save Profile"):
     try:
         row_index = user_data.index[0] + 2  # คำนวณแถวของผู้ใช้ใน Google Sheets
 
-        # ✅ อัปเดตข้อมูลใน Google Sheets
-        sheet.update(f"A{row_index}:O{row_index}", [[
+        # ✅ ใช้ลำดับคอลัมน์ที่ถูกต้อง (Skills & Additional Skill ถัดจาก Password)
+        updated_values = [
             first_name, last_name, national_id, str(dob), gender, nationality,
-            address, province, district, subdistrict, zip_code, email, user.get("Password", ""), ", ".join(selected_skills), additional_skill
-        ]])
+            address, province, district, subdistrict, zip_code, email,
+            user.get("Password", ""),  # ✅ ค่าของ Password คงเดิม
+            ", ".join(selected_skills),  # ✅ Skills คอลัมน์นี้
+            additional_skill  # ✅ Additional Skill คอลัมน์นี้
+        ]
+
+        # ✅ อัปเดตข้อมูลใน Google Sheets
+        sheet.update(f"A{row_index}:O{row_index}", [updated_values])
 
         st.success("✅ บันทึกข้อมูลสำเร็จ!")
     except Exception as e:
