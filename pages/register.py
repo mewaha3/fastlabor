@@ -49,8 +49,8 @@ with st.form(key="register_form"):
     first_name = st.text_input("First name", placeholder="Enter your first name", key="first_name")
     last_name = st.text_input("Last name", placeholder="Enter your last name", key="last_name")
     national_id = st.text_input("National ID", placeholder="Enter your ID number", key="national_id")
-    dob = st.date_input("Date of Birth", key="dob")
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="gender")
+    dob = st.date_input("Date of Birth", key="dob")  # ✅ ไม่มีค่าเป็น "" เพราะเป็นค่าเริ่มต้น
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="gender")  # ✅ ไม่สามารถเป็นค่าว่าง
     nationality = st.text_input("Nationality", placeholder="Enter your nationality", key="nationality")
 
     st.markdown("#### Address Information")
@@ -65,8 +65,11 @@ with st.form(key="register_form"):
     password = st.text_input("Password", type="password", placeholder="Enter your password", key="password")
 
     # ✅ เช็คว่ากรอกข้อมูลครบหรือยัง
-    all_fields_filled = all([first_name, last_name, national_id, str(dob), gender, nationality,
-                            address, province, district, subdistrict, zip_code, email, password])
+    required_fields = [first_name, last_name, national_id, str(dob), gender, nationality,
+                       address, province, district, subdistrict, zip_code, email, password]
+
+    # ✅ แก้ปัญหา: ถ้าทุกค่ามีข้อมูลจริง จะสามารถกด Submit ได้
+    all_fields_filled = all(bool(field) and field.strip() != "" for field in required_fields)
 
     if not all_fields_filled:
         st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
