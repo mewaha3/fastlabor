@@ -1,21 +1,29 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import json
 import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+
+try:
+    # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+except FileNotFoundError:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+
+# ✅ เชื่อมต่อ Google Sheets
 client = gspread.authorize(creds)
+sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
-# ✅ เปิด Google Sheet
-sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheet ของคุณ
-
-# ✅ โหลดข้อมูลทั้งหมดจาก Google Sheet
+# ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# ✅ ตรวจสอบว่ามี session_state สำหรับ login หรือไม่
+# ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "email" not in st.session_state:
@@ -41,13 +49,13 @@ def check_login(email, password):
             return True
     return False
 
-# ✅ แสดงหน้า Dashboard ถ้าล็อกอินแล้ว
+# ✅ ถ้าผู้ใช้ล็อกอินแล้วให้แสดงหน้า Dashboard
 if st.session_state["logged_in"]:
     st.success(f"✅ Logged in as {st.session_state['email']}")
-    
+
     # ปุ่มไปหน้า Home
     st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
-    
+
     # ปุ่ม Logout
     if st.button("Logout"):
         st.session_state["logged_in"] = False
