@@ -36,6 +36,9 @@ try:
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
+    # ✅ เปลี่ยนชื่อคอลัมน์ให้ตรงกับที่โค้ดคาดหวัง
+    df.rename(columns={"email": "Email", "password": "Password"}, inplace=True)
+
     # ✅ ตรวจสอบโครงสร้างคอลัมน์
     required_columns = [
         "First Name", "Last Name", "National ID", "DOB", "Gender", "Nationality",
@@ -97,7 +100,7 @@ selected_skills = st.multiselect("Skill *", skills, user.get("Skills", "").split
 additional_skill = st.text_area("Additional Skill", user.get("Additional Skill", ""))
 
 # ✅ แสดง email (อ่านอย่างเดียว)
-st.text_input("email address *", user["email"], disabled=True)
+st.text_input("Email address *", user["Email"], disabled=True)
 
 # ✅ ปุ่ม Submit
 if st.button("Save Profile"):
