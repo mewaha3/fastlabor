@@ -103,8 +103,8 @@ with st.form("job_form"):
 
     # ✅ กรองอำเภอจากจังหวัด
     if selected_province != "Select Province":
-        province_id = provinces[provinces["name_th"] == selected_province]["id"].values[0]
-        filtered_districts = ["Select District"] + districts[districts["province_id"] == province_id]["name_th"].tolist()
+        province_id = provinces.loc[provinces["name_th"] == selected_province, "id"].values[0]
+        filtered_districts = ["Select District"] + districts.loc[districts["province_id"] == province_id, "name_th"].tolist()
     else:
         filtered_districts = ["Select District"]
 
@@ -118,7 +118,7 @@ with st.form("job_form"):
 
     # ✅ กรองตำบลจากอำเภอ
     if selected_district != "Select District":
-        district_id = districts[districts["name_th"] == selected_district]["id"].values[0]
+        district_id = districts.loc[districts["name_th"] == selected_district, "id"].values[0]
         filtered_subdistricts = subdistricts[subdistricts["amphure_id"] == district_id]
         subdistrict_names = ["Select Subdistrict"] + filtered_subdistricts["name_th"].tolist()
         zip_codes = filtered_subdistricts.set_index("name_th")["zip_code"].to_dict()
