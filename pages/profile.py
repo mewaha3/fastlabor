@@ -19,16 +19,6 @@ def load_location_data():
 
 provinces, districts, subdistricts = load_location_data()
 
-# ✅ ตั้งค่า session_state เพื่ออัปเดตค่าอัตโนมัติ
-if "selected_province" not in st.session_state:
-    st.session_state.selected_province = "Select Province"
-if "selected_district" not in st.session_state:
-    st.session_state.selected_district = "Select District"
-if "selected_subdistrict" not in st.session_state:
-    st.session_state.selected_subdistrict = "Select Subdistrict"
-if "zip_code" not in st.session_state:
-    st.session_state.zip_code = ""
-
 # ✅ ตั้งค่า Google Sheets API (ใช้ st.secrets)
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
@@ -45,42 +35,51 @@ try:
     client = gspread.authorize(creds)
     sheet = client.open("fastlabor").sheet1
 
+    # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
+# ✅ ตรวจสอบว่าผู้ใช้ล็อกอินหรือยัง
+if "email" not in st.session_state or not st.session_state["email"]:
+    st.warning("🔒 กรุณาล็อกอินก่อน")
+    st.stop()
 
-st.image("image.png", width=150)
-st.title("New Member")
+# ✅ ดึงข้อมูลจาก Google Sheets ตาม email ที่ล็อกอิน
+email = st.session_state["email"]
+user_data = df[df["email"] == email]
+
+if user_data.empty:
+    st.error("❌ ไม่พบข้อมูลผู้ใช้")
+    st.stop()
+
+user = user_data.iloc[0]  # ดึงข้อมูลแถวแรกของผู้ใช้
+
+# ✅ UI หน้า Profile
+st.set_page_config(page_title="Profile", page_icon="👤", layout="centered")
+st.title("Profile")
 
 st.markdown("#### Personal Information")
-first_name = st.text_input("First name *", placeholder="Enter your first name")
-last_name = st.text_input("Last name *", placeholder="Enter your last name")
+first_name = st.text_input("First name *", user.get("first_name", ""))
+last_name = st.text_input("Last name *", user.get("last_name", ""))
 
-national_id = st.text_input("National ID *", placeholder="Enter your ID number (13 digits)")
-if national_id and (not national_id.isdigit() or len(national_id) != 13):
-    st.error("❌ National ID ต้องเป็นตัวเลข 13 หลักเท่านั้น")
+national_id = st.text_input("National ID *", user.get("national_id", ""), disabled=True)
+dob = st.date_input("Date of Birth *", pd.to_datetime(user.get("dob", "2000-01-01")))
 
-dob = st.date_input("Date of Birth *")
-gender = st.selectbox("Gender *", ["Male", "Female", "Other"])
-nationality = st.text_input("Nationality *", placeholder="Enter your nationality")
+gender_options = ["Male", "Female", "Other"]
+gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user.get("gender", "Male")) if user.get("gender") in gender_options else 0)
+
+nationality = st.text_input("Nationality *", user.get("nationality", ""))
 
 st.markdown("#### Address Information")
-address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Enter your address")
+address = st.text_area("Address (House Number, Road, Soi.) *", user.get("address", ""))
 
 # ✅ Province (เลือกแล้วอัปเดต District)
 province_names = ["Select Province"] + provinces["name_th"].tolist()
-selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province))
-
-# 🔹 ถ้า Province เปลี่ยนค่า ให้รีเซ็ต District และ Subdistrict
-if selected_province != st.session_state.selected_province:
-    st.session_state.selected_province = selected_province
-    st.session_state.selected_district = "Select District"
-    st.session_state.selected_subdistrict = "Select Subdistrict"
-    st.session_state.zip_code = ""
-    st.rerun()
+selected_province = st.selectbox("Province *", province_names, index=province_names.index(user.get("province", "Select Province")) if user.get("province") in province_names else 0)
 
 # ✅ District (กรองตามจังหวัดที่เลือก)
 if selected_province != "Select Province":
@@ -89,14 +88,7 @@ if selected_province != "Select Province":
 else:
     filtered_districts = ["Select District"]
 
-selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district))
-
-# 🔹 ถ้า District เปลี่ยนค่า ให้รีเซ็ต Subdistrict
-if selected_district != st.session_state.selected_district:
-    st.session_state.selected_district = selected_district
-    st.session_state.selected_subdistrict = "Select Subdistrict"
-    st.session_state.zip_code = ""
-    st.rerun()
+selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(user.get("district", "Select District")) if user.get("district") in filtered_districts else 0)
 
 # ✅ Subdistrict & Zip Code (กรองตามอำเภอที่เลือก)
 if selected_district != "Select District":
@@ -109,45 +101,34 @@ else:
     subdistrict_names = ["Select Subdistrict"]
     zip_codes = {}
 
-selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict))
+selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(user.get("subdistrict", "Select Subdistrict")) if user.get("subdistrict") in subdistrict_names else 0)
 
-# 🔹 ถ้า Subdistrict เปลี่ยนค่า ให้ Zip Code อัปเดต
-if selected_subdistrict != st.session_state.selected_subdistrict:
-    st.session_state.selected_subdistrict = selected_subdistrict
-    st.session_state.zip_code = zip_codes.get(selected_subdistrict, "")
-    st.rerun()
-
-zip_code = st.text_input("Zip Code *", st.session_state.zip_code, disabled=True)
+zip_code = st.text_input("Zip Code *", user.get("zip_code", ""), disabled=True)
 
 st.markdown("#### Skill Information")
 skills = ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"]
-selected_skills = st.multiselect("Skill *", skills, [])
+selected_skills = st.multiselect("Skill *", skills, user.get("skills", "").split(", ") if user.get("skills") else [])
 
-additional_skill = st.text_area("Additional Skill", placeholder="Enter additional skills")
+additional_skill = st.text_area("Additional Skill", user.get("additional_skill", ""))
 
 # ✅ แสดง email (อ่านอย่างเดียว)
-email = st.text_input("Email address *", st.session_state.get("email", ""), disabled=True)
+st.text_input("Email address *", user["email"], disabled=True)
 
-# ✅ **เช็คว่าทุกช่องกรอกครบหรือไม่**
-required_fields = [first_name, last_name, national_id, dob, gender, nationality,
-                   address, selected_province, selected_district, selected_subdistrict, st.session_state.zip_code, email]
-
-all_fields_filled = all(bool(str(field).strip()) for field in required_fields)
-
-if not all_fields_filled:
-    st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
-
-# ✅ ปุ่ม Submit (ปิดใช้งานถ้ายังกรอกไม่ครบ)
-submit_button = st.button("Submit", disabled=not all_fields_filled)
-
-# ✅ ถ้ากรอกครบและกด Submit ให้บันทึกข้อมูลลง Google Sheets
-if submit_button:
+# ✅ ปุ่ม Submit
+if st.button("Save Profile"):
     try:
-        sheet.append_row([first_name, last_name, national_id, str(dob), gender, nationality,
-                          address, selected_province, selected_district, selected_subdistrict, st.session_state.zip_code, email, ", ".join(selected_skills), additional_skill])
-        st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
-    except Exception as e:
-        st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
+        # ค้นหาแถวที่ต้องแก้ไข
+        row_index = user_data.index[0] + 2  # แถวใน Google Sheets (index เริ่มที่ 0 + header)
+        
+        # ✅ อัปเดตข้อมูลใน Google Sheets
+        sheet.update(f"A{row_index}:N{row_index}", [[
+            first_name, last_name, national_id, str(dob), gender, nationality,
+            address, selected_province, selected_district, selected_subdistrict, zip_code, email, ", ".join(selected_skills), additional_skill
+        ]])
 
-# ✅ ปุ่มกลับไปหน้าล็อกอิน
-st.page_link("app.py", label="⬅️ Back to Login", icon="🔙")
+        st.success("✅ บันทึกข้อมูลสำเร็จ!")
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+
+# ✅ ปุ่มกลับไปหน้า Home
+st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
