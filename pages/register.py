@@ -19,7 +19,7 @@ def load_location_data():
 
 provinces, districts, subdistricts = load_location_data()
 
-# ✅ ตรวจสอบว่ามีค่าใน session_state หรือไม่
+# ✅ ตั้งค่า session_state สำหรับ Province/District/Subdistrict ถ้ายังไม่มีค่า
 if "selected_province" not in st.session_state:
     st.session_state.selected_province = "Select Province"
 if "selected_district" not in st.session_state:
@@ -33,85 +33,83 @@ st.set_page_config(page_title="New Member Registration", page_icon="📝", layou
 st.image("image.png", width=150)  # แสดงโลโก้
 st.title("New Member")
 
-# ✅ ฟอร์มลงทะเบียน
-with st.form(key="register_form"):
-    st.markdown("#### Personal Information")
-    first_name = st.text_input("First name *", placeholder="Enter your first name")
-    last_name = st.text_input("Last name *", placeholder="Enter your last name")
+st.markdown("#### Personal Information")
+first_name = st.text_input("First name *", placeholder="Enter your first name")
+last_name = st.text_input("Last name *", placeholder="Enter your last name")
 
-    national_id = st.text_input("National ID *", placeholder="Enter your ID number (13 digits)")
-    if national_id and (not national_id.isdigit() or len(national_id) != 13):
-        st.error("❌ National ID ต้องเป็นตัวเลข 13 หลักเท่านั้น")
+national_id = st.text_input("National ID *", placeholder="Enter your ID number (13 digits)")
+if national_id and (not national_id.isdigit() or len(national_id) != 13):
+    st.error("❌ National ID ต้องเป็นตัวเลข 13 หลักเท่านั้น")
 
-    dob = st.date_input("Date of Birth *")
-    gender = st.selectbox("Gender *", ["Male", "Female", "Other"])
-    nationality = st.text_input("Nationality *", placeholder="Enter your nationality")
+dob = st.date_input("Date of Birth *")
+gender = st.selectbox("Gender *", ["Male", "Female", "Other"])
+nationality = st.text_input("Nationality *", placeholder="Enter your nationality")
 
-    st.markdown("#### Address Information")
-    address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Enter your address")
+st.markdown("#### Address Information")
+address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Enter your address")
 
-    # ✅ Province
-    province_names = ["Select Province"] + provinces["name_th"].tolist()
-    selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province))
+# ✅ Province (อยู่นอก form เพื่อให้ค่าถูกอัปเดตทันที)
+province_names = ["Select Province"] + provinces["name_th"].tolist()
+selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province))
 
-    # ✅ ถ้า Province เปลี่ยนค่า ให้รีเซ็ต District และ Subdistrict
-    if selected_province != st.session_state.selected_province:
-        st.session_state.selected_province = selected_province
-        st.session_state.selected_district = "Select District"
-        st.session_state.selected_subdistrict = "Select Subdistrict"
-        st.rerun()
+# ✅ ถ้า Province เปลี่ยนค่า ให้รีเซ็ต District และ Subdistrict
+if selected_province != st.session_state.selected_province:
+    st.session_state.selected_province = selected_province
+    st.session_state.selected_district = "Select District"
+    st.session_state.selected_subdistrict = "Select Subdistrict"
+    st.experimental_rerun()
 
-    # ✅ District (กรองตามจังหวัดที่เลือก)
-    if selected_province != "Select Province":
-        province_id = provinces[provinces["name_th"] == selected_province]["id"].values[0]
-        filtered_districts = ["Select District"] + districts[districts["province_id"] == province_id]["name_th"].tolist()
-    else:
-        filtered_districts = ["Select District"]
+# ✅ District (กรองตามจังหวัดที่เลือก)
+if selected_province != "Select Province":
+    province_id = provinces[provinces["name_th"] == selected_province]["id"].values[0]
+    filtered_districts = ["Select District"] + districts[districts["province_id"] == province_id]["name_th"].tolist()
+else:
+    filtered_districts = ["Select District"]
 
-    selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district))
+selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district))
 
-    # ✅ ถ้า District เปลี่ยนค่า ให้รีเซ็ต Subdistrict
-    if selected_district != st.session_state.selected_district:
-        st.session_state.selected_district = selected_district
-        st.session_state.selected_subdistrict = "Select Subdistrict"
-        st.rerun()
+# ✅ ถ้า District เปลี่ยนค่า ให้รีเซ็ต Subdistrict
+if selected_district != st.session_state.selected_district:
+    st.session_state.selected_district = selected_district
+    st.session_state.selected_subdistrict = "Select Subdistrict"
+    st.experimental_rerun()
 
-    # ✅ Subdistrict & Zip Code (กรองตามอำเภอที่เลือก)
-    if selected_district != "Select District":
-        district_id = districts[districts["name_th"] == selected_district]["id"].values[0]
-        filtered_subdistricts = subdistricts[subdistricts["amphure_id"] == district_id]
+# ✅ Subdistrict & Zip Code (กรองตามอำเภอที่เลือก)
+if selected_district != "Select District":
+    district_id = districts[districts["name_th"] == selected_district]["id"].values[0]
+    filtered_subdistricts = subdistricts[subdistricts["amphure_id"] == district_id]
 
-        subdistrict_names = ["Select Subdistrict"] + filtered_subdistricts["name_th"].tolist()
-        zip_codes = filtered_subdistricts["zip_code"].tolist()
-    else:
-        subdistrict_names = ["Select Subdistrict"]
-        zip_codes = [""]
+    subdistrict_names = ["Select Subdistrict"] + filtered_subdistricts["name_th"].tolist()
+    zip_codes = filtered_subdistricts["zip_code"].tolist()
+else:
+    subdistrict_names = ["Select Subdistrict"]
+    zip_codes = [""]
 
-    selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict))
+selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict))
 
-    # ✅ ถ้า Subdistrict เปลี่ยนค่า ให้รีเฟรชค่า Zip Code
-    if selected_subdistrict != st.session_state.selected_subdistrict:
-        st.session_state.selected_subdistrict = selected_subdistrict
-        st.rerun()
+# ✅ ถ้า Subdistrict เปลี่ยนค่า ให้รีเฟรชค่า Zip Code
+if selected_subdistrict != st.session_state.selected_subdistrict:
+    st.session_state.selected_subdistrict = selected_subdistrict
+    st.experimental_rerun()
 
-    zip_code = zip_codes[subdistrict_names.index(selected_subdistrict)] if selected_subdistrict != "Select Subdistrict" else ""
-    st.text_input("Zip Code *", zip_code, disabled=True)
+zip_code = zip_codes[subdistrict_names.index(selected_subdistrict)] if selected_subdistrict != "Select Subdistrict" else ""
+st.text_input("Zip Code *", zip_code, disabled=True)
 
-    st.markdown("#### Account Information")
-    email = st.text_input("Email address *", placeholder="Enter your email")
-    password = st.text_input("Password *", type="password", placeholder="Enter your password")
+st.markdown("#### Account Information")
+email = st.text_input("Email address *", placeholder="Enter your email")
+password = st.text_input("Password *", type="password", placeholder="Enter your password")
 
-    # ✅ ตรวจสอบว่าทุกช่องกรอกครบหรือไม่
-    required_fields = [first_name, last_name, national_id, str(dob), gender, nationality,
-                       address, selected_province, selected_district, selected_subdistrict, zip_code, email, password]
+# ✅ ตรวจสอบว่าทุกช่องกรอกครบหรือไม่
+required_fields = [first_name, last_name, national_id, str(dob), gender, nationality,
+                   address, selected_province, selected_district, selected_subdistrict, zip_code, email, password]
 
-    all_fields_filled = all(bool(field) and field.strip() != "" for field in required_fields)
+all_fields_filled = all(bool(field) and field.strip() != "" for field in required_fields)
 
-    if not all_fields_filled:
-        st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
+if not all_fields_filled:
+    st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
 
-    # ✅ ปุ่ม Submit (ปิดใช้งานถ้ายังกรอกไม่ครบ)
-    submit_button = st.form_submit_button("Submit", disabled=not all_fields_filled)
+# ✅ ปุ่ม Submit (ปิดใช้งานถ้ายังกรอกไม่ครบ)
+submit_button = st.button("Submit", disabled=not all_fields_filled)
 
 # ✅ ถ้ากรอกครบและกด Submit ให้บันทึกข้อมูลลง Google Sheets
 if submit_button:
