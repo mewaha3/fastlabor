@@ -36,9 +36,15 @@ try:
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
-    # ✅ ตรวจสอบว่ามีคอลัมน์ 'email' หรือไม่
-    if "email" not in df.columns:
-        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets")
+    # ✅ ตรวจสอบคอลัมน์ให้ตรงกับที่เราต้องการ
+    required_columns = [
+        "First Name", "Last Name", "National ID", "DOB", "Gender", "Nationality",
+        "Address", "Province", "District", "Subdistrict", "Zip Code",
+        "Email", "Password", "Skills", "Additional Skill"
+    ]
+
+    if df.columns.tolist() != required_columns:
+        st.error(f"❌ คอลัมน์ใน Google Sheets ไม่ตรงกับที่ต้องการ!\n\nพบ: {df.columns.tolist()}\n\nต้องการ: {required_columns}")
         st.stop()
 
 except Exception as e:
@@ -52,7 +58,7 @@ if "email" not in st.session_state or not st.session_state["email"]:
 
 # ✅ ดึงข้อมูลจาก Google Sheets ตาม email ที่ล็อกอิน
 email = st.session_state["email"]
-user_data = df[df["email"] == email]
+user_data = df[df["Email"] == email]
 
 if user_data.empty:
     st.error("❌ ไม่พบข้อมูลผู้ใช้")
@@ -79,32 +85,9 @@ nationality = st.text_input("Nationality *", user.get("Nationality", ""))
 st.markdown("#### Address Information")
 address = st.text_area("Address (House Number, Road, Soi.) *", user.get("Address", ""))
 
-# ✅ Province (เลือกแล้วอัปเดต District)
-province_names = ["Select Province"] + provinces["name_th"].tolist()
-selected_province = st.selectbox("Province *", province_names, index=province_names.index(user.get("Province", "Select Province")) if user.get("Province") in province_names else 0)
-
-# ✅ District (กรองตามจังหวัดที่เลือก)
-if selected_province != "Select Province":
-    province_id = provinces[provinces["name_th"] == selected_province]["id"].values[0]
-    filtered_districts = ["Select District"] + districts[districts["province_id"] == province_id]["name_th"].tolist()
-else:
-    filtered_districts = ["Select District"]
-
-selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(user.get("District", "Select District")) if user.get("District") in filtered_districts else 0)
-
-# ✅ Subdistrict & Zip Code (กรองตามอำเภอที่เลือก)
-if selected_district != "Select District":
-    district_id = districts[districts["name_th"] == selected_district]["id"].values[0]
-    filtered_subdistricts = subdistricts[subdistricts["amphure_id"] == district_id]
-
-    subdistrict_names = ["Select Subdistrict"] + filtered_subdistricts["name_th"].tolist()
-    zip_codes = filtered_subdistricts.set_index("name_th")["zip_code"].to_dict()
-else:
-    subdistrict_names = ["Select Subdistrict"]
-    zip_codes = {}
-
-selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(user.get("Subdistrict", "Select Subdistrict")) if user.get("Subdistrict") in subdistrict_names else 0)
-
+province = st.text_input("Province *", user.get("Province", ""))
+district = st.text_input("District *", user.get("District", ""))
+subdistrict = st.text_input("Subdistrict *", user.get("Subdistrict", ""))
 zip_code = st.text_input("Zip Code *", user.get("Zip Code", ""), disabled=True)
 
 st.markdown("#### Skill Information")
@@ -114,7 +97,7 @@ selected_skills = st.multiselect("Skill *", skills, user.get("Skills", "").split
 additional_skill = st.text_area("Additional Skill", user.get("Additional Skill", ""))
 
 # ✅ แสดง email (อ่านอย่างเดียว)
-st.text_input("Email address *", user["email"], disabled=True)
+st.text_input("Email address *", user["Email"], disabled=True)
 
 # ✅ ปุ่ม Submit
 if st.button("Save Profile"):
@@ -122,9 +105,9 @@ if st.button("Save Profile"):
         row_index = user_data.index[0] + 2  # คำนวณแถวของผู้ใช้ใน Google Sheets
 
         # ✅ อัปเดตข้อมูลใน Google Sheets
-        sheet.update(f"A{row_index}:N{row_index}", [[
+        sheet.update(f"A{row_index}:O{row_index}", [[
             first_name, last_name, national_id, str(dob), gender, nationality,
-            address, selected_province, selected_district, selected_subdistrict, zip_code, email, ", ".join(selected_skills), additional_skill
+            address, province, district, subdistrict, zip_code, email, user.get("Password", ""), ", ".join(selected_skills), additional_skill
         ]])
 
         st.success("✅ บันทึกข้อมูลสำเร็จ!")
