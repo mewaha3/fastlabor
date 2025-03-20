@@ -8,7 +8,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", sco
 client = gspread.authorize(creds)
 
 # ✅ เปิด Google Sheet (เปลี่ยนชื่อให้ตรงกับไฟล์ของคุณ)
-sheet = client.open("FastLaborUsers").sheet1  # ชื่อ Google Sheet ของคุณ
+sheet = client.open("fastlabor").sheet1  # ชื่อ Google Sheet ของคุณ
 
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
