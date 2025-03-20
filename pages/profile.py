@@ -97,7 +97,7 @@ selected_skills = st.multiselect("Skill *", skills, user.get("Skills", "").split
 additional_skill = st.text_area("Additional Skill", user.get("Additional Skill", ""))
 
 # ✅ แสดง email (อ่านอย่างเดียว)
-st.text_input("Email address *", user["email"], disabled=True)
+st.text_input("email address *", user["email"], disabled=True)
 
 # ✅ ปุ่ม Submit
 if st.button("Save Profile"):
