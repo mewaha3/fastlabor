@@ -31,6 +31,10 @@ st.markdown("""
             justify-content: center;
             height: 80vh;
         }
+        /* ลดระยะห่างระหว่างรูปกับข้อความ */
+        .logo {
+            margin-bottom: -10px;
+        }
         /* ส่วนท้าย */
         .footer {
             text-align: center;
@@ -46,12 +50,9 @@ if st.button("👤 Profile", use_container_width=False):
     st.switch_page("pages/profile.py")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ✅ แสดงโลโก้
-st.image("image.png", width=150)
-
-# ✅ ส่วนหัว
-st.markdown('<div class="center-container">', unsafe_allow_html=True)
-st.markdown('<h1 style="margin-bottom: 10px;">Please Select Activity</h1>', unsafe_allow_html=True)
+# ✅ แสดงโลโก้ (ลดระยะห่าง)
+st.image("image.png", width=150, output_format="auto", use_column_width=False)
+st.markdown('<h1 style="margin-bottom: 5px; text-align: center;">Please Select Activity</h1>', unsafe_allow_html=True)
 
 # ✅ ปุ่มกิจกรรม (Post Job & Find Job)
 col1, col2 = st.columns([1, 1])
@@ -61,8 +62,6 @@ with col1:
 with col2:
     if st.button("🔎 Find Job", use_container_width=True):
         st.switch_page("pages/find_job.py")
-
-st.markdown("</div>", unsafe_allow_html=True)  # ปิด center-container
 
 # ✅ เส้นแบ่ง
 st.divider()
