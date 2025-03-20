@@ -22,7 +22,7 @@ except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ โหลดข้อมูลที่อยู่จาก API GitHub
+# ✅ โหลดข้อมูลจาก GitHub
 @st.cache_data
 def load_location_data():
     url_province = "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province.json"
@@ -37,50 +37,75 @@ def load_location_data():
 
 provinces, districts, subdistricts = load_location_data()
 
+# ✅ ใช้ Session State เพื่ออัปเดตข้อมูล
+if "selected_province" not in st.session_state:
+    st.session_state.selected_province = "Select Province"
+if "selected_district" not in st.session_state:
+    st.session_state.selected_district = "Select District"
+
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
 
 st.image("image.png", width=150)
 st.title("New Member")
 
-# ✅ ฟอร์มลงทะเบียน
 with st.form(key="register_form"):
     st.markdown("#### Personal Information")
-    first_name = st.text_input("First name", placeholder="Enter your first name", key="first_name")
-    last_name = st.text_input("Last name", placeholder="Enter your last name", key="last_name")
+    first_name = st.text_input("First name", placeholder="Enter your first name")
+    last_name = st.text_input("Last name", placeholder="Enter your last name")
     
-    national_id = st.text_input("National ID (13 digits)", placeholder="Enter your ID number", key="national_id")
+    national_id = st.text_input("National ID (13 digits)", placeholder="Enter your ID number")
     if national_id and not re.match(r'^\d{13}$', national_id):
         st.error("⚠️ National ID ต้องเป็นตัวเลข 13 หลักเท่านั้น")
 
-    dob = st.date_input("Date of Birth", key="dob")
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="gender")
-    nationality = st.text_input("Nationality", placeholder="Enter your nationality", key="nationality")
+    dob = st.date_input("Date of Birth")
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+    nationality = st.text_input("Nationality", placeholder="Enter your nationality")
 
     st.markdown("#### Address Information")
 
     # ✅ เลือกจังหวัด
-    province_list = provinces["name_th"].tolist()
-    province = st.selectbox("Province", ["Select Province"] + province_list, key="province")
+    province_list = ["Select Province"] + provinces["name_th"].tolist()
+    province = st.selectbox("Province", province_list, key="province", index=province_list.index(st.session_state.selected_province))
 
-    # ✅ กรองอำเภอตามจังหวัดที่เลือก
-    district_list = districts[districts["province_id"] == provinces[provinces["name_th"] == province]["id"].values[0]]["name_th"].tolist() if province != "Select Province" else []
-    district = st.selectbox("District", ["Select District"] + district_list, key="district")
+    # ✅ ค้นหา Province ID
+    province_id = provinces[provinces["name_th"] == province]["id"].iloc[0] if province != "Select Province" else None
 
-    # ✅ กรองตำบลตามอำเภอที่เลือก
-    subdistrict_list = subdistricts[subdistricts["amphure_id"] == districts[districts["name_th"] == district]["id"].values[0]]["name_th"].tolist() if district != "Select District" else []
-    subdistrict = st.selectbox("Subdistrict", ["Select Subdistrict"] + subdistrict_list, key="subdistrict")
+    # ✅ โหลดอำเภอที่ตรงกับจังหวัดที่เลือก
+    district_list = ["Select District"]
+    if province_id:
+        district_list += districts[districts["province_id"] == province_id]["name_th"].tolist()
 
-    # ✅ ดึงรหัสไปรษณีย์อัตโนมัติจากตำบลที่เลือก
+    district = st.selectbox("District", district_list, key="district", index=district_list.index(st.session_state.selected_district))
+
+    # ✅ ค้นหา District ID
+    district_id = districts[districts["name_th"] == district]["id"].iloc[0] if district != "Select District" else None
+
+    # ✅ โหลดตำบลที่ตรงกับอำเภอที่เลือก
+    subdistrict_list = ["Select Subdistrict"]
+    if district_id:
+        subdistrict_list += subdistricts[subdistricts["amphure_id"] == district_id]["name_th"].tolist()
+
+    subdistrict = st.selectbox("Subdistrict", subdistrict_list, key="subdistrict")
+
+    # ✅ ดึงรหัสไปรษณีย์อัตโนมัติ
     zip_code = subdistricts[subdistricts["name_th"] == subdistrict]["zip_code"].values
     zip_code_value = zip_code[0] if len(zip_code) > 0 else ""
-    zip_code = st.text_input("Zip Code", value=zip_code_value, disabled=True, key="zip_code")
+    zip_code = st.text_input("Zip Code", value=zip_code_value, disabled=True)
 
     st.markdown("#### Account Information")
-    email = st.text_input("Email address", placeholder="Enter your email", key="email")
-    password = st.text_input("Password", type="password", placeholder="Enter your password", key="password")
+    email = st.text_input("Email address", placeholder="Enter your email")
+    password = st.text_input("Password", type="password", placeholder="Enter your password")
 
     submit_button = st.form_submit_button("Submit")
+
+# ✅ อัปเดตค่าใน Session State เมื่อเลือก Province/District
+if province != "Select Province":
+    st.session_state.selected_province = province
+    st.session_state.selected_district = "Select District"  # รีเซ็ต District
+
+if district != "Select District":
+    st.session_state.selected_district = district
 
 # ✅ เช็คข้อมูลก่อนบันทึก
 if submit_button:
