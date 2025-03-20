@@ -26,6 +26,5 @@ with st.form(key="register_form"):
 if submit_button:
     st.success(f"Welcome, {first_name} {last_name}! You have successfully registered.")
 
-# ✅ Add a back button to return to the login page
-if st.button("Back to Login"):
-    st.switch_page("app")
+# ✅ Use `st.page_link()` to go back to login
+st.page_link("app.py", label="Back to Login", icon="⬅️")
