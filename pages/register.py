@@ -27,4 +27,5 @@ if submit_button:
     st.success(f"Welcome, {first_name} {last_name}! You have successfully registered.")
 
 # ✅ Add a back button to return to the login page
-st.page_link("app.py", label="Back to Login", icon="⬅️")
+if st.button("Back to Login"):
+    st.switch_page("app")
