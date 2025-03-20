@@ -37,23 +37,26 @@ if "email" not in st.session_state:
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
 
-# ✅ เพิ่ม Custom CSS เพื่อทำให้ UI สวยขึ้น
+# ✅ เพิ่ม Custom CSS ให้ UI สวยงามขึ้น
 st.markdown("""
     <style>
+        body {
+            background-color: #f4f7fc;
+        }
         .login-container {
-            max-width: 400px;
+            max-width: 420px;
             margin: auto;
-            padding: 2rem;
+            padding: 2.5rem;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
         .stTextInput, .stButton {
             margin-bottom: 15px;
         }
         .login-title {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: bold;
             color: #4F8BF9;
         }
@@ -67,7 +70,7 @@ st.markdown("""
             width: 100%;
             border-radius: 8px;
             padding: 10px;
-            font-size: 16px;
+            font-size: 18px;
         }
         .login-btn:hover {
             background-color: #357ABD !important;
@@ -76,6 +79,15 @@ st.markdown("""
             font-size: 14px;
             color: #6c757d;
             margin-top: 15px;
+        }
+        .link-btn {
+            font-size: 16px;
+            color: #4F8BF9;
+            text-decoration: none;
+        }
+        .link-btn:hover {
+            color: #357ABD;
+            text-decoration: underline;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -86,7 +98,7 @@ st.markdown('<div class="login-title">FAST LABOR</div>', unsafe_allow_html=True)
 st.markdown('<div class="login-subtitle">FAST JOB, FULL TRUST, GREAT WORKER</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ✅ กล่อง Login แบบสวยงาม
+# ✅ กล่อง Login แบบโมเดิร์น
 with st.container():
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
@@ -110,11 +122,11 @@ with st.container():
             st.warning("⚠️ กรุณากรอกข้อมูลให้ครบ")
 
     # ✅ ลิงก์ไปยัง Forget Password
-    st.page_link("pages/reset_password.py", label="🔑 Forget password?", icon="🔑")
+    st.markdown('<a class="link-btn" href="pages/reset_password.py">🔑 Forget password?</a>', unsafe_allow_html=True)
 
     st.markdown('<div class="login-footer">or</div>', unsafe_allow_html=True)
 
     # ✅ ปุ่ม Register
-    st.page_link("pages/register.py", label="📝 New Register", icon="📝")
+    st.markdown('<a class="link-btn" href="pages/register.py">📝 New Register</a>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
