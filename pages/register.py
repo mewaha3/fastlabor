@@ -37,11 +37,13 @@ def load_location_data():
 
 provinces, districts, subdistricts = load_location_data()
 
-# ✅ ใช้ Session State เพื่ออัปเดตข้อมูล
+# ✅ ใช้ st.session_state เพื่อให้ UI อัปเดตอัตโนมัติ
 if "selected_province" not in st.session_state:
     st.session_state.selected_province = "Select Province"
 if "selected_district" not in st.session_state:
     st.session_state.selected_district = "Select District"
+if "selected_subdistrict" not in st.session_state:
+    st.session_state.selected_subdistrict = "Select Subdistrict"
 
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
@@ -66,7 +68,14 @@ with st.form(key="register_form"):
 
     # ✅ เลือกจังหวัด
     province_list = ["Select Province"] + provinces["name_th"].tolist()
-    province = st.selectbox("Province", province_list, key="province", index=province_list.index(st.session_state.selected_province))
+    province = st.selectbox("Province", province_list, key="province")
+
+    # ✅ ถ้าผู้ใช้เปลี่ยนจังหวัด รีเซ็ตค่า District และ Subdistrict
+    if province != st.session_state.selected_province:
+        st.session_state.selected_province = province
+        st.session_state.selected_district = "Select District"
+        st.session_state.selected_subdistrict = "Select Subdistrict"
+        st.rerun()
 
     # ✅ ค้นหา Province ID
     province_id = provinces[provinces["name_th"] == province]["id"].iloc[0] if province != "Select Province" else None
@@ -76,7 +85,13 @@ with st.form(key="register_form"):
     if province_id:
         district_list += districts[districts["province_id"] == province_id]["name_th"].tolist()
 
-    district = st.selectbox("District", district_list, key="district", index=district_list.index(st.session_state.selected_district))
+    district = st.selectbox("District", district_list, key="district")
+
+    # ✅ ถ้าผู้ใช้เปลี่ยนอำเภอ รีเซ็ตค่า Subdistrict
+    if district != st.session_state.selected_district:
+        st.session_state.selected_district = district
+        st.session_state.selected_subdistrict = "Select Subdistrict"
+        st.rerun()
 
     # ✅ ค้นหา District ID
     district_id = districts[districts["name_th"] == district]["id"].iloc[0] if district != "Select District" else None
@@ -98,14 +113,6 @@ with st.form(key="register_form"):
     password = st.text_input("Password", type="password", placeholder="Enter your password")
 
     submit_button = st.form_submit_button("Submit")
-
-# ✅ อัปเดตค่าใน Session State เมื่อเลือก Province/District
-if province != "Select Province":
-    st.session_state.selected_province = province
-    st.session_state.selected_district = "Select District"  # รีเซ็ต District
-
-if district != "Select District":
-    st.session_state.selected_district = district
 
 # ✅ เช็คข้อมูลก่อนบันทึก
 if submit_button:
