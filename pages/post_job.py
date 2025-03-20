@@ -55,6 +55,16 @@ if "email" not in st.session_state or not st.session_state["email"]:
     st.warning("🔒 กรุณาล็อกอินก่อนโพสต์งาน")
     st.stop()
 
+# ✅ ตั้งค่า Session State สำหรับ Address
+if "selected_province" not in st.session_state:
+    st.session_state.selected_province = "Select Province"
+if "selected_district" not in st.session_state:
+    st.session_state.selected_district = "Select District"
+if "selected_subdistrict" not in st.session_state:
+    st.session_state.selected_subdistrict = "Select Subdistrict"
+if "zip_code" not in st.session_state:
+    st.session_state.zip_code = ""
+
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="Post Job", page_icon="📌", layout="centered")
 
@@ -65,16 +75,6 @@ st.title("Post Job")
 st.write("For generating a list of employees who match the job.")
 
 st.image("image.png", width=400)
-
-# ✅ ตั้งค่า Session State สำหรับ Address
-if "selected_province" not in st.session_state:
-    st.session_state.selected_province = "Select Province"
-if "selected_district" not in st.session_state:
-    st.session_state.selected_district = "Select District"
-if "selected_subdistrict" not in st.session_state:
-    st.session_state.selected_subdistrict = "Select Subdistrict"
-if "zip_code" not in st.session_state:
-    st.session_state.zip_code = ""
 
 # ✅ ฟอร์มสำหรับเพิ่มงานใหม่
 with st.form("job_form"):
