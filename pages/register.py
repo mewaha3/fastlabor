@@ -29,6 +29,26 @@ if "selected_subdistrict" not in st.session_state:
 if "zip_code" not in st.session_state:
     st.session_state.zip_code = ""
 
+# ✅ ตั้งค่า Google Sheets API (ใช้ st.secrets)
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+try:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    sheet = client.open("fastlabor").sheet1
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
+
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
 
@@ -118,16 +138,8 @@ submit_button = st.button("Submit", disabled=not all_fields_filled)
 # ✅ ถ้ากรอกครบและกด Submit ให้บันทึกข้อมูลลง Google Sheets
 if submit_button:
     try:
-        # 🔹 เชื่อมต่อ Google Sheets
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-        client = gspread.authorize(creds)
-        sheet = client.open("fastlabor").sheet1
-
-        # 🔹 บันทึกข้อมูลลง Google Sheets
         sheet.append_row([first_name, last_name, national_id, str(dob), gender, nationality,
                           address, selected_province, selected_district, selected_subdistrict, st.session_state.zip_code, email, password])
-
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
     except Exception as e:
         st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
