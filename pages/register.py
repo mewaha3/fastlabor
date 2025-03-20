@@ -33,10 +33,6 @@ st.markdown("""
             content: " *";
             color: red;
         }
-        .stButton>button[disabled] {
-            background-color: #ccc !important;
-            cursor: not-allowed !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -49,8 +45,8 @@ with st.form(key="register_form"):
     first_name = st.text_input("First name", placeholder="Enter your first name", key="first_name")
     last_name = st.text_input("Last name", placeholder="Enter your last name", key="last_name")
     national_id = st.text_input("National ID", placeholder="Enter your ID number", key="national_id")
-    dob = st.date_input("Date of Birth", key="dob")  # ✅ ไม่มีค่าเป็น "" เพราะเป็นค่าเริ่มต้น
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="gender")  # ✅ ไม่สามารถเป็นค่าว่าง
+    dob = st.date_input("Date of Birth", key="dob")
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="gender")
     nationality = st.text_input("Nationality", placeholder="Enter your nationality", key="nationality")
 
     st.markdown("#### Address Information")
@@ -64,27 +60,18 @@ with st.form(key="register_form"):
     email = st.text_input("Email address", placeholder="Enter your email", key="email")
     password = st.text_input("Password", type="password", placeholder="Enter your password", key="password")
 
-    # ✅ เช็คว่ากรอกข้อมูลครบหรือยัง
-    required_fields = [first_name, last_name, national_id, str(dob), gender, nationality,
-                       address, province, district, subdistrict, zip_code, email, password]
+    submit_button = st.form_submit_button("Submit")
 
-    # ✅ แก้ปัญหา: ถ้าทุกค่ามีข้อมูลจริง จะสามารถกด Submit ได้
-    all_fields_filled = all(bool(field) and field.strip() != "" for field in required_fields)
-
-    if not all_fields_filled:
-        st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
-
-    # ✅ ปุ่ม Submit (ปิดใช้งานถ้ายังกรอกไม่ครบ)
-    submit_button = st.form_submit_button("Submit", disabled=not all_fields_filled)
-
-# ✅ ถ้ากรอกครบและกด Submit ให้บันทึกข้อมูลลง Google Sheets
+# ✅ เช็คว่าผู้ใช้กรอกข้อมูลครบหรือไม่
 if submit_button:
-    try:
+    if first_name and last_name and national_id and email and password:
+        # ✅ บันทึกข้อมูลลง Google Sheets
         sheet.append_row([first_name, last_name, national_id, str(dob), gender, nationality,
                           address, province, district, subdistrict, zip_code, email, password])
+        
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
-    except Exception as e:
-        st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
+    else:
+        st.error("⚠️ กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบ")
 
 # ✅ ปุ่มกลับไปหน้าล็อกอิน
 st.page_link("app.py", label="⬅️ Back to Login", icon="🔙")
