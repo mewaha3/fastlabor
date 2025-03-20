@@ -31,9 +31,11 @@ st.markdown("""
             justify-content: center;
             height: 80vh;
         }
-        /* ลดระยะห่างระหว่างรูปกับข้อความ */
-        .logo {
-            margin-bottom: -10px;
+        /* ลดขนาดรูปและลดระยะห่าง */
+        .logo-container img {
+            width: 120px; /* ปรับขนาดรูปให้เล็กลง */
+            display: block;
+            margin: auto;
         }
         /* ส่วนท้าย */
         .footer {
@@ -50,8 +52,12 @@ if st.button("👤 Profile", use_container_width=False):
     st.switch_page("pages/profile.py")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ✅ แสดงโลโก้ (ลดระยะห่าง)
-st.image("image.png", width=150, output_format="auto", use_column_width=False)
+# ✅ แสดงโลโก้ (ลดขนาดรูป และระยะห่าง)
+st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+st.image("image.png")
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ✅ ส่วนหัว (ลดระยะห่างให้ชิดกับรูป)
 st.markdown('<h1 style="margin-bottom: 5px; text-align: center;">Please Select Activity</h1>', unsafe_allow_html=True)
 
 # ✅ ปุ่มกิจกรรม (Post Job & Find Job)
