@@ -1,22 +1,35 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import json
 import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-client = gspread.authorize(creds)
 
-# ✅ เปิด Google Sheet
-sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheet ของคุณ
+try:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-# ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
-data = sheet.get_all_records()
-df = pd.DataFrame(data)
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+
+    # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
 
 # ✅ ตรวจสอบว่าผู้ใช้ล็อกอินหรือยัง
-if "email" not in st.session_state:
+if "email" not in st.session_state or not st.session_state["email"]:
     st.warning("🔒 กรุณาล็อกอินก่อน")
     st.stop()
 
@@ -31,12 +44,9 @@ if user_data.empty:
 user = user_data.iloc[0]  # ดึงข้อมูลแถวแรกของผู้ใช้
 
 # ✅ ตรวจสอบว่ามีคอลัมน์ 'skills', 'password' และ 'additional_skill' หรือไม่
-if "skills" not in user:
-    user["skills"] = ""
-if "password" not in user:
-    user["password"] = ""  # ป้องกันข้อมูล password หายไป
-if "additional_skill" not in user:
-    user["additional_skill"] = ""
+user.setdefault("skills", "")
+user.setdefault("password", "")  # ป้องกันข้อมูล password หายไป
+user.setdefault("additional_skill", "")
 
 # ✅ UI หน้า Profile
 st.set_page_config(page_title="Profile", page_icon="👤", layout="centered")
