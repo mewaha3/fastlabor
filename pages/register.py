@@ -4,7 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+creds = creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 client = gspread.authorize(creds)
 
 # ✅ เปิด Google Sheet (เปลี่ยนชื่อให้ตรงกับไฟล์ของคุณ)
