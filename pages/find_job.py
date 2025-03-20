@@ -1,29 +1,42 @@
 import streamlit as st
 import gspread
+import json
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-client = gspread.authorize(creds)
 
-# ✅ เปิด Google Sheet
-spreadsheet = client.open("fastlabor")  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
-
-# ✅ ตรวจสอบว่ามี Sheet `find_job` หรือยัง ถ้าไม่มีให้สร้างใหม่
 try:
-    sheet = spreadsheet.worksheet("find_job")  # ดึง sheet ที่ชื่อ find_job
-except gspread.exceptions.WorksheetNotFound:
-    sheet = spreadsheet.add_worksheet(title="find_job", rows="1000", cols="10")  # สร้างใหม่ถ้าไม่มี
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-# ✅ เพิ่ม Header ใน Sheet `find_job` ถ้ายังไม่มี
-expected_headers = ["email", "job_type", "skills", "job_date", "start_time", "end_time",
-                    "province", "district", "subdistrict", "start_salary", "range_salary"]
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("fastlabor")  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
-existing_headers = sheet.row_values(1)
+    # ✅ ตรวจสอบว่ามี Sheet `find_job` หรือยัง ถ้าไม่มีให้สร้างใหม่
+    try:
+        sheet = spreadsheet.worksheet("find_job")  # ดึง sheet ที่ชื่อ find_job
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title="find_job", rows="1000", cols="10")  # สร้างใหม่ถ้าไม่มี
 
-if not existing_headers:
-    sheet.append_row(expected_headers)  # ✅ เพิ่ม Header ในแถวแรก
+    # ✅ เพิ่ม Header ใน Sheet `find_job` ถ้ายังไม่มี
+    expected_headers = ["email", "job_type", "skills", "job_date", "start_time", "end_time",
+                        "province", "district", "subdistrict", "start_salary", "range_salary"]
+
+    existing_headers = sheet.row_values(1)
+
+    if not existing_headers:
+        sheet.append_row(expected_headers)  # ✅ เพิ่ม Header ในแถวแรก
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
 
 # ✅ ตรวจสอบว่า user ล็อกอินอยู่หรือไม่
 if "email" not in st.session_state or not st.session_state["email"]:
