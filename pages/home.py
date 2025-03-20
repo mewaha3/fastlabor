@@ -33,7 +33,7 @@ st.markdown("""
         }
         /* ลดขนาดรูปและลดระยะห่าง */
         .logo-container img {
-            width: 20px; /* ปรับขนาดรูปให้เล็กลง */
+            width: 80px; /* ลดขนาดรูปให้เล็กลง */
             display: block;
             margin: auto;
         }
