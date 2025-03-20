@@ -92,11 +92,12 @@ st.markdown("#### Account Information")
 email = st.text_input("Email address *", placeholder="Enter your email")
 password = st.text_input("Password *", type="password", placeholder="Enter your password")
 
-# ✅ ตรวจสอบว่าทุกช่องกรอกครบหรือไม่
-required_fields = [first_name, last_name, national_id, str(dob), gender, nationality,
+# ✅ **เช็คว่าทุกช่องกรอกครบหรือไม่ (แก้ `AttributeError`)**
+required_fields = [first_name, last_name, national_id, dob, gender, nationality,
                    address, selected_province, selected_district, selected_subdistrict, zip_code, email, password]
 
-all_fields_filled = all(bool(field) and field.strip() != "" for field in required_fields)
+# 🔹 **แก้ปัญหา `strip()` โดยแปลงทุกค่าเป็น `str` ก่อนตรวจสอบ**
+all_fields_filled = all(bool(str(field).strip()) for field in required_fields)
 
 if not all_fields_filled:
     st.warning("⚠️ กรุณากรอกข้อมูลทุกช่องให้ครบถ้วนก่อนกด Submit")
