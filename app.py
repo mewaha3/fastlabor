@@ -76,7 +76,7 @@ password = st.text_input("Password", type="password", placeholder="Enter your pa
 
 col1, col2 = st.columns([1, 3])
 with col1:
-    login_button = st.button("Submit")
+    login_button = st.button("Login")
 with col2:
     st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
 
