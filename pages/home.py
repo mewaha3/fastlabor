@@ -21,10 +21,13 @@ st.markdown("""
             color: #555;
             margin-bottom: 30px;
         }
-        .button-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
+        .stButton > button {
+            background-color: black !important;
+            color: white !important;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            width: 100%;
         }
         .footer {
             text-align: center;
@@ -44,13 +47,16 @@ st.markdown('<div class="subtext">Choose an option to continue</div>', unsafe_al
 # ✅ ปุ่มกิจกรรม (Post Job & Find Job)
 col1, col2 = st.columns([1, 1])
 with col1:
-     if st.button("pages/post_job.py", label="📝 Post Job", use_container_width=True)
+    if st.button("📝 Post Job", use_container_width=True):
+        st.switch_page("pages/post_job.py")
 with col2:
     if st.button("🔎 Find Job", use_container_width=True):
         st.switch_page("pages/find_job.py")
 
-# ✅ ปุ่ม Profile ด้านบน
-st.button("pages/profile.py", label="👤 Profile", use_container_width=True)
+# ✅ ปุ่ม Profile (ให้อยู่ตรงกลาง)
+st.markdown("<br>", unsafe_allow_html=True)  # เพิ่มระยะห่าง
+if st.button("👤 Profile", use_container_width=True):
+    st.switch_page("pages/profile.py")
 
 # ✅ เส้นแบ่ง
 st.divider()
@@ -59,6 +65,7 @@ st.divider()
 st.markdown('<div class="footer">FAST LABOR</div>', unsafe_allow_html=True)
 st.markdown('<div class="footer">Follow us on:</div>', unsafe_allow_html=True)
 
+# 🔹 Social Media Links
 social_links = {
     "Facebook": "#",
     "Instagram": "#",
