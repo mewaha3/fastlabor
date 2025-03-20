@@ -8,20 +8,25 @@ from oauth2client.service_account import ServiceAccountCredentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
-    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-except FileNotFoundError:
     # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
-    credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-# ✅ เชื่อมต่อ Google Sheets
-client = gspread.authorize(creds)
-sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
-# ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
-data = sheet.get_all_records()
-df = pd.DataFrame(data)
+    # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
 
 # ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
 if "logged_in" not in st.session_state:
