@@ -44,13 +44,13 @@ st.markdown('<div class="subtext">Choose an option to continue</div>', unsafe_al
 # ✅ ปุ่มกิจกรรม (Post Job & Find Job)
 col1, col2 = st.columns([1, 1])
 with col1:
-    st.page_link("pages/post_job.py", label="📝 Post Job", use_container_width=True)
+     if st.button("pages/post_job.py", label="📝 Post Job", use_container_width=True)
 with col2:
     if st.button("🔎 Find Job", use_container_width=True):
         st.switch_page("pages/find_job.py")
 
 # ✅ ปุ่ม Profile ด้านบน
-st.page_link("pages/profile.py", label="👤 Profile", use_container_width=True)
+st.button("pages/profile.py", label="👤 Profile", use_container_width=True)
 
 # ✅ เส้นแบ่ง
 st.divider()
