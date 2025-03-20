@@ -27,9 +27,8 @@ def main():
     st.markdown("---")
     st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
 
-    # ✅ Use Streamlit’s built-in navigation for multi-page apps
-    if st.button("New Register"):
-        st.switch_page("pages/register")
+    # ✅ Use `st.page_link()` to navigate to the Register Page
+    st.page_link("pages/register.py", label="New Register", icon="📝")
 
     # Authentication logic (Mock database)
     USER_CREDENTIALS = {
