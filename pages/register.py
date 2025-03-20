@@ -1,14 +1,27 @@
 import streamlit as st
 import gspread
+import json
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-client = gspread.authorize(creds)
 
-# ✅ เปิด Google Sheet (เปลี่ยนชื่อให้ตรงกับไฟล์ของคุณ)
-sheet = client.open("fastlabor").sheet1  # ชื่อ Google Sheet ของคุณ
+try:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
 
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
