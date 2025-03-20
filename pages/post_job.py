@@ -102,11 +102,12 @@ with st.form("job_form"):
         st.experimental_rerun()
 
     # ✅ กรองอำเภอจากจังหวัด
+    filtered_districts = ["Select District"]
     if selected_province != "Select Province":
-        province_id = provinces.loc[provinces["name_th"] == selected_province, "id"].values[0]
-        filtered_districts = ["Select District"] + districts.loc[districts["province_id"] == province_id, "name_th"].tolist()
-    else:
-        filtered_districts = ["Select District"]
+        province_id = provinces.loc[provinces["name_th"] == selected_province, "id"].values
+        if len(province_id) > 0:
+            province_id = province_id[0]
+            filtered_districts += districts.loc[districts["province_id"] == province_id, "name_th"].tolist()
 
     selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district) if st.session_state.selected_district in filtered_districts else 0)
 
@@ -117,16 +118,17 @@ with st.form("job_form"):
         st.experimental_rerun()
 
     # ✅ กรองตำบลจากอำเภอ
+    filtered_subdistricts = ["Select Subdistrict"]
+    zip_codes = {}
     if selected_district != "Select District":
-        district_id = districts.loc[districts["name_th"] == selected_district, "id"].values[0]
-        filtered_subdistricts = subdistricts[subdistricts["amphure_id"] == district_id]
-        subdistrict_names = ["Select Subdistrict"] + filtered_subdistricts["name_th"].tolist()
-        zip_codes = filtered_subdistricts.set_index("name_th")["zip_code"].to_dict()
-    else:
-        subdistrict_names = ["Select Subdistrict"]
-        zip_codes = {}
+        district_id = districts.loc[districts["name_th"] == selected_district, "id"].values
+        if len(district_id) > 0:
+            district_id = district_id[0]
+            subdistrict_list = subdistricts[subdistricts["amphure_id"] == district_id]
+            filtered_subdistricts += subdistrict_list["name_th"].tolist()
+            zip_codes = subdistrict_list.set_index("name_th")["zip_code"].to_dict()
 
-    selected_subdistrict = st.selectbox("Subdistrict *", subdistrict_names, index=subdistrict_names.index(st.session_state.selected_subdistrict) if st.session_state.selected_subdistrict in subdistrict_names else 0)
+    selected_subdistrict = st.selectbox("Subdistrict *", filtered_subdistricts, index=filtered_subdistricts.index(st.session_state.selected_subdistrict) if st.session_state.selected_subdistrict in filtered_subdistricts else 0)
 
     if selected_subdistrict != st.session_state.selected_subdistrict:
         st.session_state.selected_subdistrict = selected_subdistrict
