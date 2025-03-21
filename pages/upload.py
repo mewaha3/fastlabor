@@ -2,7 +2,6 @@ import streamlit as st
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
-import datetime
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -28,14 +27,14 @@ if "user_email" not in st.session_state:
 
 user_email = st.session_state["user_email"]
 
-# ✅ ดึงข้อมูลผู้ใช้จาก Google Sheets
+# ✅ ดึงข้อมูลทั้งหมดจาก Google Sheets
 try:
     values = sheet.get_all_values()
     raw_headers = values[0]
     headers = [h.strip().lower() for h in raw_headers]
 
     if "email" not in headers:
-        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets กรุณาตรวจสอบแถวหัวตาราง")
+        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets")
         st.stop()
 
     email_col = headers.index("email")
@@ -54,37 +53,37 @@ st.set_page_config(page_title="Upload Documents", page_icon="📂", layout="cent
 st.image("image.png", width=150)
 st.title("Upload File")
 
-st.markdown("กรุณาอัปโหลดเอกสารที่คุณมี (รองรับ .pdf และ .png)")
+st.markdown("อัปโหลดเอกสารของคุณ (รองรับ PDF หรือ PNG)")
 
 file_types = ["pdf", "png"]
 
-# ✅ แบบฟอร์มอัปโหลด
 certificate = st.file_uploader("หนังสือรับรอง (Certificate)", type=file_types)
 passport = st.file_uploader("หนังสือเดินทาง (Passport)", type=file_types)
 visa = st.file_uploader("หนังสือขอวีซ่า (Visa)", type=file_types)
 work_permit = st.file_uploader("หนังสืออนุญาตทำงาน (Work Permit)", type=file_types)
 
-# ✅ ปุ่มอัปโหลด
 if st.button("Upload"):
     try:
         updates = []
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # ✅ เริ่มบันทึกไฟล์ที่อัปโหลดเท่านั้น
+        # ✅ กำหนดคอลัมน์เอกสารแบบชัดเจน (14 = N)
+        certificate_col = 14
+        passport_col = 15
+        visa_col = 16
+        work_permit_col = 17
+
         if certificate:
-            updates.append((email_col + 2, certificate.name))
+            updates.append((certificate_col, certificate.name))
         if passport:
-            updates.append((email_col + 3, passport.name))
+            updates.append((passport_col, passport.name))
         if visa:
-            updates.append((email_col + 4, visa.name))
+            updates.append((visa_col, visa.name))
         if work_permit:
-            updates.append((email_col + 5, work_permit.name))
+            updates.append((work_permit_col, work_permit.name))
 
-        # ✅ ถ้ามีการอัปโหลดใด ๆ จึงบันทึก
         if updates:
             for col, filename in updates:
                 sheet.update_cell(user_row, col, filename)
-            sheet.update_cell(user_row, email_col + 6, timestamp)
             st.success(f"✅ อัปโหลดสำเร็จสำหรับ {user_email}!")
         else:
             st.warning("⚠️ กรุณาเลือกไฟล์อย่างน้อย 1 รายการเพื่ออัปโหลด")
