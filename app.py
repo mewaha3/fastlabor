@@ -22,7 +22,20 @@ try:
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
     data = sheet.get_all_records()
+
+    # ✅ ถ้าข้อมูลว่าง (Google Sheets ไม่มีข้อมูล)
+    if not data:
+        st.error("❌ ไม่พบข้อมูลใน Google Sheets")
+        st.stop()
+
+    # ✅ แปลงข้อมูลเป็น DataFrame และเปลี่ยน header เป็นตัวพิมพ์เล็ก
     df = pd.DataFrame(data)
+    df.columns = df.columns.str.lower()  # ✅ ป้องกัน KeyError จากตัวพิมพ์เล็ก-ใหญ่
+
+    # ✅ ตรวจสอบว่ามีคอลัมน์ email และ password หรือไม่
+    if "email" not in df.columns or "password" not in df.columns:
+        st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
+        st.stop()
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
@@ -49,8 +62,9 @@ st.write("""
 
 # ✅ ฟังก์ชันตรวจสอบการล็อกอิน
 def check_login(email, password):
+    email = email.strip().lower()  # ✅ ทำให้เป็นตัวพิมพ์เล็กเสมอ
     for index, row in df.iterrows():
-        if row["email"] == email and row["password"] == password:
+        if row.get("email", "").strip().lower() == email and row.get("password", "").strip() == password:
             return True
     return False
 
