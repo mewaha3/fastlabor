@@ -1,12 +1,17 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import json
+from google.oauth2.service_account import Credentials
 
-# ✅ ตั้งค่า Google Sheets API
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+# ✅ ใช้ Streamlit Secrets แทน credentials.json
+creds_dict = json.loads(st.secrets["gcp_service_account"].to_json())
+
+# ✅ สร้าง Credentials จาก Secrets
+creds = Credentials.from_service_account_info(creds_dict)
+
+# ✅ เชื่อมต่อ Google Sheets API
 client = gspread.authorize(creds)
-sheet = client.open("fastlabor").sheet1  # ใช้ Sheet หลัก
+sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheet ของคุณ
 
 # ✅ ตั้งค่าหน้า
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
@@ -40,7 +45,7 @@ if submit_button:
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
 
         # ✅ เก็บอีเมลใน Session State
-        st.session_state.user_email = email
+        st.session_state["user_email"] = email
 
         # ✅ นำทางไปหน้า upload.py
         st.switch_page("upload.py")
