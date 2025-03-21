@@ -1,4 +1,8 @@
 import streamlit as st
+
+# ✅ `st.set_page_config()` ต้องเป็นคำสั่งแรกสุด
+st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
+
 import gspread
 import json
 import pandas as pd
@@ -34,18 +38,22 @@ if "logged_in" not in st.session_state:
 if "email" not in st.session_state:
     st.session_state["email"] = None
 
-# ✅ ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
-
+# ✅ UI เริ่มต้น
 st.image("image.png", width=150)  # แสดงโลโก้
-st.title("FAST LABOR")
 
-st.markdown("### About")
-st.write("""
-**FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER**  
-แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ  
-เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย
-""")
+st.markdown("<h1 style='text-align: center;'>FAST LABOR</h1>", unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <h3 style='text-align: center; color: gray;'>FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER</h3>
+    <p style='text-align: center;'>
+    แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน  
+    ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ  
+    เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย
+    </p>
+    """,
+    unsafe_allow_html=True
+)
 
 # ✅ ฟังก์ชันตรวจสอบการล็อกอิน
 def check_login(email, password):
@@ -70,15 +78,17 @@ if st.session_state["logged_in"]:
     st.stop()
 
 # ✅ ฟอร์ม Login
-st.markdown("## LOGIN")
-email = st.text_input("Email address/Username", placeholder="email@example.com")
-password = st.text_input("Password", type="password", placeholder="Enter your password")
+st.markdown("<h2 style='text-align: center;'>LOGIN</h2>", unsafe_allow_html=True)
 
-col1, col2 = st.columns([1, 3])
-with col1:
-    login_button = st.button("Login")
-with col2:
-    st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
+with st.form("login_form"):
+    email = st.text_input("Email address/Username", placeholder="email@example.com")
+    password = st.text_input("Password", type="password", placeholder="Enter your password")
+
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        login_button = st.form_submit_button("Submit")
+    with col2:
+        st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
 
 st.markdown("---")
 st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
