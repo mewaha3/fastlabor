@@ -66,7 +66,6 @@ if st.button("Upload"):
     try:
         updates = []
 
-        # ✅ กำหนดคอลัมน์เอกสารแบบชัดเจน (14 = N)
         certificate_col = 14
         passport_col = 15
         visa_col = 16
@@ -85,6 +84,10 @@ if st.button("Upload"):
             for col, filename in updates:
                 sheet.update_cell(user_row, col, filename)
             st.success(f"✅ อัปโหลดสำเร็จสำหรับ {user_email}!")
+
+            # ✅ เปลี่ยนหน้าไป verification.py
+            st.switch_page("pages/verification.py")
+
         else:
             st.warning("⚠️ กรุณาเลือกไฟล์อย่างน้อย 1 รายการเพื่ออัปโหลด")
 
