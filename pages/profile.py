@@ -15,12 +15,27 @@ try:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+    sheet = client.open("fastlabor").sheet1  
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
     values = sheet.get_all_values()
-    headers = values[0]
-    df = pd.DataFrame(values[1:], columns=headers)
+
+    if not values or len(values) < 2:
+        st.error("❌ ไม่พบข้อมูลใน Google Sheets (Sheet ว่าง)")
+        st.stop()
+
+    # ✅ แปลง header เป็นพิมพ์เล็กและตัดช่องว่าง
+    headers = [h.strip().lower() for h in values[0]]
+    rows = values[1:]
+    df = pd.DataFrame(rows, columns=headers).fillna("")  # ✅ ป้องกัน NaN
+
+    # ✅ Debug: ตรวจสอบ headers
+    st.write("📌 Headers from Google Sheets:", df.columns.tolist())
+
+    # ✅ ตรวจสอบว่ามีคอลัมน์ email หรือไม่
+    if "email" not in df.columns:
+        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets")
+        st.stop()
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
@@ -46,30 +61,24 @@ st.set_page_config(page_title="Profile", page_icon="👤", layout="centered")
 st.title("Profile")
 
 st.markdown("#### Personal Information")
-first_name = st.text_input("First name *", user["First Name"])
-last_name = st.text_input("Last name *", user["Last Name"])
+first_name = st.text_input("First name *", user["first_name"])  # ✅ ใช้ชื่อพิมพ์เล็ก
+last_name = st.text_input("Last name *", user["last_name"])
 
-national_id = st.text_input("National ID *", user["National ID"], disabled=True)
-dob = st.date_input("Date of Birth *", pd.to_datetime(user["DOB"], errors='coerce'))
+national_id = st.text_input("National ID *", user["national_id"], disabled=True)
+dob = st.date_input("Date of Birth *", pd.to_datetime(user["dob"], errors='coerce'))
 
 gender_options = ["Male", "Female", "Other"]
-gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["Gender"]) if user["Gender"] in gender_options else 0)
+gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["gender"]) if user["gender"] in gender_options else 0)
 
-nationality = st.text_input("Nationality *", user["Nationality"])
+nationality = st.text_input("Nationality *", user["nationality"])
 
 st.markdown("#### Address Information")
-address = st.text_area("Address (House Number, Road, Soi.) *", user["Address"])
+address = st.text_area("Address (House Number, Road, Soi.) *", user["address"])
 
-province = st.text_input("Province *", user["Province"])
-district = st.text_input("District *", user["District"])
-subdistrict = st.text_input("Subdistrict *", user["Subdistrict"])
-zip_code = st.text_input("Zip Code *", user["Zip Code"], disabled=True)
-
-st.markdown("#### Skill Information")
-skills = ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"]
-selected_skills = st.multiselect("Skill *", skills, user["Skills"].split(", ") if user["Skills"] else [])
-
-additional_skill = st.text_area("Additional Skill", user["Additional Skill"])
+province = st.text_input("Province *", user["province"])
+district = st.text_input("District *", user["district"])
+subdistrict = st.text_input("Subdistrict *", user["subdistrict"])
+zip_code = st.text_input("Zip Code *", user["zip_code"], disabled=True)
 
 # ✅ แสดง email (อ่านอย่างเดียว)
 st.text_input("Email address *", user["email"], disabled=True)
@@ -84,12 +93,10 @@ if st.button("Save Profile"):
             first_name, last_name, national_id, str(dob.date()), gender, nationality,
             address, province, district, subdistrict, zip_code, email,
             user["password"],  # ✅ คงค่า Password เดิมไว้
-            ", ".join(selected_skills),  # ✅ Skills
-            additional_skill  # ✅ Additional Skill
         ]
 
         # ✅ อัปเดตข้อมูลใน Google Sheets
-        sheet.update(f"A{row_index}:O{row_index}", [updated_values])
+        sheet.update(f"A{row_index}:L{row_index}", [updated_values])
 
         st.success("✅ บันทึกข้อมูลสำเร็จ!")
     except Exception as e:
