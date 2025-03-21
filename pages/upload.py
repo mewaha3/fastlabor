@@ -15,78 +15,79 @@ try:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  # ใช้ Sheet เดียวกับ Register
+    sheet = client.open("fastlabor").sheet1
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ ตรวจสอบว่ามีอีเมลใน session_state หรือไม่
+# ✅ ตรวจสอบ session
 if "user_email" not in st.session_state:
     st.error("⚠️ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนใหม่")
     st.stop()
 
 user_email = st.session_state["user_email"]
 
-# ✅ ดึงข้อมูลทั้งหมดจาก Google Sheets
+# ✅ ดึงข้อมูลผู้ใช้จาก Google Sheets
 try:
-    values = sheet.get_all_values()  # ✅ ใช้ get_all_values() เพื่อให้แน่ใจว่าไม่มีคอลัมน์หายไป
-    headers = [h.lower() for h in values[0]]  # ✅ แปลงชื่อคอลัมน์เป็นตัวพิมพ์เล็กทั้งหมด
+    values = sheet.get_all_values()
+    raw_headers = values[0]
+    headers = [h.strip().lower() for h in raw_headers]
 
     if "email" not in headers:
-        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets กรุณาตรวจสอบไฟล์ของคุณ")
+        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets กรุณาตรวจสอบแถวหัวตาราง")
         st.stop()
 
-    email_col = headers.index("email")  # ✅ หา index ของคอลัมน์ 'email'
-
-    # ✅ หาแถวของ user_email
-    user_row = next((i + 1 for i, row in enumerate(values[1:], start=2) if row[email_col] == user_email), None)
+    email_col = headers.index("email")
+    user_row = next((i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email), None)
 
     if not user_row:
-        st.error(f"⚠️ ไม่พบข้อมูลผู้ใช้ {user_email} ใน Google Sheets กรุณาลงทะเบียนใหม่")
+        st.error(f"⚠️ ไม่พบข้อมูลผู้ใช้ {user_email} ใน Google Sheets")
         st.stop()
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถดึงข้อมูลจาก Google Sheets: {e}")
     st.stop()
 
-# ✅ ตั้งค่าหน้า Streamlit
+# ✅ ตั้งค่าหน้า
 st.set_page_config(page_title="Upload Documents", page_icon="📂", layout="centered")
 st.image("image.png", width=150)
 st.title("Upload File")
 
-st.markdown("กรุณาอัปโหลดเอกสารตามที่กำหนดด้านล่าง")
+st.markdown("กรุณาอัปโหลดเอกสารที่คุณมี (รองรับ .pdf และ .png)")
 
-file_types = ["pdf", "png"]  # ✅ รองรับทั้ง PDF และ PNG
+file_types = ["pdf", "png"]
 
-# ✅ ฟอร์มอัปโหลดเอกสาร
-certificate = st.file_uploader("หนังสือรับรอง (Certificate) *", type=file_types)
-passport = st.file_uploader("หนังสือเดินทาง (Passport) *", type=file_types)
-visa = st.file_uploader("หนังสือขอวีซ่า (Visa) *", type=file_types)
-work_permit = st.file_uploader("หนังสืออนุญาตทำงาน (Work Permit) *", type=file_types)
+# ✅ แบบฟอร์มอัปโหลด
+certificate = st.file_uploader("หนังสือรับรอง (Certificate)", type=file_types)
+passport = st.file_uploader("หนังสือเดินทาง (Passport)", type=file_types)
+visa = st.file_uploader("หนังสือขอวีซ่า (Visa)", type=file_types)
+work_permit = st.file_uploader("หนังสืออนุญาตทำงาน (Work Permit)", type=file_types)
 
-# ✅ ปุ่มยืนยันเอกสาร
-if st.button("Verify"):
-    if certificate and passport and visa and work_permit:
+# ✅ ปุ่มอัปโหลด
+if st.button("Upload"):
+    try:
+        updates = []
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # ✅ หา index ของ column ถัดไปจาก register (เช่น คอลัมน์ 15, 16, 17, ...)
-        cert_col = email_col + 2
-        pass_col = email_col + 3
-        visa_col = email_col + 4
-        work_permit_col = email_col + 5
-        timestamp_col = email_col + 6
+        # ✅ เริ่มบันทึกไฟล์ที่อัปโหลดเท่านั้น
+        if certificate:
+            updates.append((email_col + 2, certificate.name))
+        if passport:
+            updates.append((email_col + 3, passport.name))
+        if visa:
+            updates.append((email_col + 4, visa.name))
+        if work_permit:
+            updates.append((email_col + 5, work_permit.name))
 
-        # ✅ อัปเดตชื่อไฟล์ลง Google Sheets
-        try:
-            sheet.update_cell(user_row, cert_col, certificate.name)  
-            sheet.update_cell(user_row, pass_col, passport.name)  
-            sheet.update_cell(user_row, visa_col, visa.name)  
-            sheet.update_cell(user_row, work_permit_col, work_permit.name)  
-            sheet.update_cell(user_row, timestamp_col, timestamp)  
-
+        # ✅ ถ้ามีการอัปโหลดใด ๆ จึงบันทึก
+        if updates:
+            for col, filename in updates:
+                sheet.update_cell(user_row, col, filename)
+            sheet.update_cell(user_row, email_col + 6, timestamp)
             st.success(f"✅ อัปโหลดสำเร็จสำหรับ {user_email}!")
-        except Exception as e:
-            st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
-    else:
-        st.error("⚠️ กรุณาอัปโหลดเอกสารให้ครบทุกไฟล์ก่อนกด Verify")
+        else:
+            st.warning("⚠️ กรุณาเลือกไฟล์อย่างน้อย 1 รายการเพื่ออัปโหลด")
+
+    except Exception as e:
+        st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
