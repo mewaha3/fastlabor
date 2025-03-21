@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import pandas as pd
 import gspread
+import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ โหลดข้อมูลจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์
@@ -39,7 +40,7 @@ try:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
@@ -48,9 +49,9 @@ except Exception as e:
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
 st.image("image.png", width=150)
-st.title("New Member")
-st.markdown("#### Personal Information")
+st.title("New Member Registration")
 
+st.markdown("#### Personal Information")
 first_name = st.text_input("First name *")
 last_name = st.text_input("Last name *")
 national_id = st.text_input("National ID *")
@@ -130,14 +131,23 @@ submit_button = st.button("Submit", disabled=not all_fields_filled)
 # ✅ บันทึกข้อมูลเมื่อกด Submit
 if submit_button:
     try:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         sheet.append_row([
             first_name, last_name, national_id, str(dob), gender, nationality,
             address, selected_province, selected_district, selected_subdistrict,
-            st.session_state.zip_code, email, password
+            st.session_state.zip_code, email, password, timestamp
         ])
+
         st.success("✅ ลงทะเบียนสำเร็จ!")
         st.session_state["user_email"] = email
-        st.switch_page("upload.py")
+
+        # ✅ เปลี่ยนหน้าไป upload.py
+        try:
+            st.switch_page("pages/upload.py")
+        except:
+            st.page_link("pages/upload.py", label="ไปที่หน้าอัปโหลดไฟล์", icon="📂")
+
     except Exception as e:
         st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
 
