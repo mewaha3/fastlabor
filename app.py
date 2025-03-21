@@ -33,9 +33,6 @@ try:
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers).fillna("").astype(str)  # ✅ ป้องกัน NaN และแปลงเป็น string
 
-    # ✅ Debug: ตรวจสอบ headers
-    st.write("📌 Headers from Google Sheets:", df.columns.tolist())
-
     # ✅ ตรวจสอบว่ามีคอลัมน์ email หรือไม่
     if "email" not in df.columns or "password" not in df.columns:
         st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
