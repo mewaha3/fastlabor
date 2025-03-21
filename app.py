@@ -1,4 +1,8 @@
 import streamlit as st
+
+# ✅ ตั้งค่า `st.set_page_config()` ให้เป็นคำสั่งแรก
+st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
+
 import gspread
 import json
 import pandas as pd
@@ -8,15 +12,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
-    if "gcp" in st.secrets:
+    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
-        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-    # ✅ เชื่อมต่อ Google Sheets
     client = gspread.authorize(creds)
     sheet = client.open("fastlabor").sheet1  
 
@@ -27,20 +28,18 @@ try:
         st.error("❌ ไม่พบข้อมูลใน Google Sheets (Sheet ว่าง)")
         st.stop()
 
-    headers = [h.strip().lower() for h in values[0]]  # ✅ แปลง header เป็นพิมพ์เล็ก
+    # ✅ แปลง header เป็นพิมพ์เล็กและตัดช่องว่าง
+    headers = [h.strip().lower() for h in values[0]]
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers).fillna("").astype(str)  # ✅ ป้องกัน NaN และแปลงเป็น string
 
     # ✅ Debug: ตรวจสอบ headers
     st.write("📌 Headers from Google Sheets:", df.columns.tolist())
 
-    # ✅ ตรวจสอบว่ามีคอลัมน์ email และ password หรือไม่
+    # ✅ ตรวจสอบว่ามีคอลัมน์ email หรือไม่
     if "email" not in df.columns or "password" not in df.columns:
         st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
         st.stop()
-
-    # ✅ Debug: แสดงข้อมูลตัวอย่าง
-    st.write("📌 Sample Data:", df.head())
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
@@ -52,9 +51,7 @@ if "logged_in" not in st.session_state:
 if "email" not in st.session_state:
     st.session_state["email"] = None
 
-# ✅ ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
-
+# ✅ UI เริ่มต้น
 st.image("image.png", width=150)  # แสดงโลโก้
 st.title("FAST LABOR")
 
