@@ -4,11 +4,11 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+creds = creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 client = gspread.authorize(creds)
 
-# ✅ เปิด Google Sheet
-sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheet ของคุณ
+# ✅ เปิด Google Sheet (เปลี่ยนชื่อให้ตรงกับไฟล์ของคุณ)
+sheet = client.open("fastlabor").sheet1  # ชื่อ Google Sheet ของคุณ
 
 # ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
@@ -41,13 +41,6 @@ if submit_button:
                           address, province, district, subdistrict, zip_code, email, password])
         
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
-
-        # ✅ เก็บ email ใน session state เพื่อนำไปใช้ใน upload.py
-        st.session_state["user_email"] = email
-
-        # ✅ เปลี่ยนไปหน้า upload.py
-        st.switch_page("upload.py")
-
     else:
         st.error("⚠️ กรุณากรอกข้อมูลให้ครบทุกช่องที่จำเป็น")
 
