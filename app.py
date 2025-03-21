@@ -29,7 +29,7 @@ try:
 
     headers = [h.strip().lower() for h in values[0]]  # ✅ แปลง header เป็นพิมพ์เล็ก
     rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers)
+    df = pd.DataFrame(rows, columns=headers).fillna("")  # ✅ แก้ NaN เป็น ""
 
     # ✅ Debug: แสดงชื่อคอลัมน์ทั้งหมด
     st.write("📌 Headers from Google Sheets:", headers)
