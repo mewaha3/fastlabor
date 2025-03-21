@@ -1,6 +1,6 @@
 import streamlit as st
 
-# ✅ `st.set_page_config()` ต้องอยู่เป็นคำสั่งแรกสุด
+# ✅ `st.set_page_config()` ต้องเป็นคำสั่งแรกสุด
 st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
 
 import gspread
@@ -41,6 +41,11 @@ try:
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
+
+# ✅ Debug: แสดง Headers และตัวอย่างข้อมูลหลังจาก `st.set_page_config()`
+st.write("📌 Headers from Google Sheets:", df.columns.tolist())
+st.write("📌 Sample Data:")
+st.dataframe(df.head())
 
 # ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
 if "logged_in" not in st.session_state:
