@@ -57,7 +57,7 @@ st.title("Upload File")
 
 st.markdown("กรุณาอัปโหลดเอกสารตามที่กำหนดด้านล่าง")
 
-file_types = ["pdf"]
+file_types = ["pdf", "png"]  # ✅ รองรับทั้ง PDF และ PNG
 
 # ✅ ฟอร์มอัปโหลดเอกสาร
 certificate = st.file_uploader("หนังสือรับรอง (Certificate) *", type=file_types)
@@ -70,13 +70,20 @@ if st.button("Verify"):
     if certificate and passport and visa and work_permit:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # ✅ บันทึกข้อมูลลงในแถวที่ผู้ใช้สมัครไว้
+        # ✅ หา index ของ column ถัดไปจาก register (เช่น คอลัมน์ 15, 16, 17, ...)
+        cert_col = email_col + 2
+        pass_col = email_col + 3
+        visa_col = email_col + 4
+        work_permit_col = email_col + 5
+        timestamp_col = email_col + 6
+
+        # ✅ อัปเดตชื่อไฟล์ลง Google Sheets
         try:
-            sheet.update_cell(user_row, email_col + 2, "Certificate.pdf")  # ✅ อัปเดตหลังคอลัมน์ email
-            sheet.update_cell(user_row, email_col + 3, "Passport.pdf")  
-            sheet.update_cell(user_row, email_col + 4, "Visa.pdf")         
-            sheet.update_cell(user_row, email_col + 5, "Work_permit.pdf")  
-            sheet.update_cell(user_row, email_col + 6, timestamp)  # ✅ Timestamp
+            sheet.update_cell(user_row, cert_col, certificate.name)  
+            sheet.update_cell(user_row, pass_col, passport.name)  
+            sheet.update_cell(user_row, visa_col, visa.name)  
+            sheet.update_cell(user_row, work_permit_col, work_permit.name)  
+            sheet.update_cell(user_row, timestamp_col, timestamp)  
 
             st.success(f"✅ อัปโหลดสำเร็จสำหรับ {user_email}!")
         except Exception as e:
