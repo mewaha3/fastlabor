@@ -1,4 +1,4 @@
-Himport streamlit as st
+import streamlit as st
 
 # ✅ ตั้งค่าหน้า
 st.set_page_config(page_title="Verification Result", page_icon="✅", layout="centered")
