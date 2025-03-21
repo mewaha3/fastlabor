@@ -1,28 +1,26 @@
 import streamlit as st
-
-# ✅ `st.set_page_config()` ต้องเป็นคำสั่งแรกสุด
-st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
-
 import gspread
 import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 
+# ✅ ตั้งค่า Streamlit Page (ต้องเป็นคำสั่งแรก)
+st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
+
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    # ✅ โหลด Credentials จาก Streamlit Secrets (Cloud) หรือ Local
     if "gcp" in st.secrets:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
-        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     # ✅ เชื่อมต่อ Google Sheets
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+    sheet = client.open("fastlabor").sheet1  
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
     data = sheet.get_all_records()
@@ -41,10 +39,9 @@ if "email" not in st.session_state:
 # ✅ UI เริ่มต้น
 st.image("image.png", width=150)  # แสดงโลโก้
 
-st.markdown("<h1 style='text-align: center;'>FAST LABOR</h1>", unsafe_allow_html=True)
-
 st.markdown(
     """
+    <h1 style='text-align: center;'>FAST LABOR</h1>
     <h3 style='text-align: center; color: gray;'>FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER</h3>
     <p style='text-align: center;'>
     แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน  
@@ -55,11 +52,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ✅ ฟังก์ชันตรวจสอบการล็อกอิน
+# ✅ ฟังก์ชันตรวจสอบการล็อกอินจาก Google Sheets
 def check_login(email, password):
-    for index, row in df.iterrows():
-        if row["email"] == email and row["password"] == password:
-            return True
+    if "email" in df.columns and "password" in df.columns:
+        user_data = df[(df["email"] == email) & (df["password"] == password)]
+        return not user_data.empty
     return False
 
 # ✅ ถ้าผู้ใช้ล็อกอินแล้วให้แสดงหน้า Dashboard
@@ -88,7 +85,7 @@ with st.form("login_form"):
     with col1:
         login_button = st.form_submit_button("Submit")
     with col2:
-        st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
+        st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑", help="Click here to reset your password")
 
 st.markdown("---")
 st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
