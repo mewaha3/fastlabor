@@ -1,6 +1,6 @@
 import streamlit as st
 
-# ✅ ตั้งค่า `st.set_page_config()` ให้เป็นคำสั่งแรก
+# ✅ `st.set_page_config()` ต้องอยู่เป็นคำสั่งแรกสุด
 st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
 
 import gspread
