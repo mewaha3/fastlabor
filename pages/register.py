@@ -142,11 +142,9 @@ if submit_button:
         st.success("✅ ลงทะเบียนสำเร็จ!")
         st.session_state["user_email"] = email
 
-        # ✅ เปลี่ยนหน้าไป upload.py
-        try:
-            st.switch_page("pages/upload.py")
-        except:
-            st.page_link("pages/upload.py", label="ไปที่หน้าอัปโหลดไฟล์", icon="📂")
+        # ✅ เปลี่ยนหน้าไป upload.py ทันที (ไม่มีปุ่มกด)
+        st.experimental_rerun()
+        st.switch_page("pages/upload.py")
 
     except Exception as e:
         st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
