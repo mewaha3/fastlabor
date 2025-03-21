@@ -128,7 +128,7 @@ all_fields_filled = all(bool(str(field).strip()) for field in required_fields)
 
 submit_button = st.button("Submit", disabled=not all_fields_filled)
 
-# ✅ บันทึกข้อมูลเมื่อกด Submit
+# ✅ บันทึกข้อมูลเมื่อกด Submit และไปหน้า upload.py ทันที
 if submit_button:
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -142,8 +142,7 @@ if submit_button:
         st.success("✅ ลงทะเบียนสำเร็จ!")
         st.session_state["user_email"] = email
 
-        # ✅ เปลี่ยนหน้าไป upload.py ทันที (ไม่มีปุ่มกด)
-        st.experimental_rerun()
+        # ✅ เปลี่ยนหน้าไป upload.py ทันที
         st.switch_page("pages/upload.py")
 
     except Exception as e:
