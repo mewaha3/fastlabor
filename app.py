@@ -1,100 +1,98 @@
 import streamlit as st
+import gspread
+import json
+import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Set page config (must be the first Streamlit command)
-st.set_page_config(page_title="FAST LABOR", page_icon="⚙️", layout="centered")
+# ✅ ตั้งค่า Google Sheets API
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-# Custom CSS to match the design
-st.markdown("""
-<style>
-    .title-text {
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 0;
-    }
-    .subtitle-text {
-        font-size: 14px;
-        color: #333;
-        margin-top: 0;
-    }
-    .description-text {
-        font-size: 12px;
-        color: #555;
-        margin-bottom: 20px;
-    }
-    .login-container {
-        max-width: 400px;
-        margin: 0 auto;
-    }
-    .login-header {
-        text-align: center;
-        font-weight: bold;
-        margin: 20px 0;
-    }
-    .login-form {
-        background-color: white;
-        padding: 10px;
-        border-radius: 5px;
-    }
-    .stButton>button {
-        background-color: black;
-        color: white;
-        width: 100%;
-        height: 40px;
-        border-radius: 3px;
-    }
-    .centered-text {
-        text-align: center;
-    }
-    .forgot-password {
-        text-align: right;
-        font-size: 12px;
-        color: #ff0000;
-    }
-    .divider {
-        margin: 15px 0;
-        text-align: center;
-    }
-</style>
-""", unsafe_allow_html=True)
+try:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-# Center the logo and title
-col1, col2, col3 = st.columns([1, 2, 1])
+    # ✅ เชื่อมต่อ Google Sheets
+    client = gspread.authorize(creds)
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+
+    # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.stop()
+
+# ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "email" not in st.session_state:
+    st.session_state["email"] = None
+
+# ✅ ตั้งค่าหน้า Streamlit
+st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
+
+st.image("image.png", width=150)  # แสดงโลโก้
+st.title("FAST LABOR")
+
+st.markdown("### About")
+st.write("""
+**FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER**  
+แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ  
+เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย
+""")
+
+# ✅ ฟังก์ชันตรวจสอบการล็อกอิน
+def check_login(email, password):
+    for index, row in df.iterrows():
+        if row["email"] == email and row["password"] == password:
+            return True
+    return False
+
+# ✅ ถ้าผู้ใช้ล็อกอินแล้วให้แสดงหน้า Dashboard
+if st.session_state["logged_in"]:
+    st.success(f"✅ Logged in as {st.session_state['email']}")
+
+    # ปุ่มไปหน้า Home
+    st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
+
+    # ปุ่ม Logout
+    if st.button("Logout"):
+        st.session_state["logged_in"] = False
+        st.session_state["email"] = None
+        st.experimental_rerun()
+
+    st.stop()
+
+# ✅ ฟอร์ม Login
+st.markdown("## LOGIN")
+email = st.text_input("Email address/Username", placeholder="email@example.com")
+password = st.text_input("Password", type="password", placeholder="Enter your password")
+
+col1, col2 = st.columns([1, 3])
+with col1:
+    login_button = st.button("Login")
 with col2:
-    st.image("https://raw.githubusercontent.com/username/fastlabor/main/image.png", width=100)  # Replace with your actual image path
+    st.page_link("pages/reset_password.py", label="Forget password?", icon="🔑")
 
-# Title and description
-st.markdown('<p class="title-text">About</p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle-text">FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER</p>', unsafe_allow_html=True)
-st.markdown('<p class="description-text">แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย</p>', unsafe_allow_html=True)
+st.markdown("---")
+st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
 
-# Login section
-st.markdown('<div class="login-header">LOGIN</div>', unsafe_allow_html=True)
+st.page_link("pages/register.py", label="New Register", icon="📝")
 
-# Login form
-with st.form("login_form"):
-    # Email/Username field
-    st.markdown('<label>Email address/Username</label>', unsafe_allow_html=True)
-    email = st.text_input("", placeholder="example@fastlabor.com", label_visibility="collapsed")
-    
-    # Password field
-    st.markdown('<label>Password</label>', unsafe_allow_html=True)
-    password = st.text_input("", type="password", placeholder="••••••••••••••••", label_visibility="collapsed")
-    
-    # Forgot password link
-    st.markdown('<div class="forgot-password"><a href="#">Forgot password?</a></div>', unsafe_allow_html=True)
-    
-    # Submit button
-    submit_button = st.form_submit_button("Submit")
+# ✅ ตรวจสอบข้อมูลที่ผู้ใช้ป้อน
+if login_button:
+    if check_login(email, password):
+        st.session_state["logged_in"] = True
+        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
+        st.success(f"Welcome, {email}!")
 
-# Divider
-st.markdown('<div class="divider">or</div>', unsafe_allow_html=True)
-
-# New Register link
-st.markdown('<div class="centered-text"><a href="#">New Register</a></div>', unsafe_allow_html=True)
-
-# Handle form submission
-if submit_button:
-    # Replace with your actual authentication logic
-    st.success("Login attempt with: " + email)
-    # For demonstration purposes only
-    # In a real app, you would check credentials against a database
+        # ✅ เปลี่ยนไปหน้า Home
+        st.switch_page("pages/home.py")
+    else:
+        st.error("❌ Invalid email or password. Please try again.")
