@@ -15,27 +15,12 @@ try:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
     values = sheet.get_all_values()
-
-    if not values or len(values) < 2:
-        st.error("❌ ไม่พบข้อมูลใน Google Sheets (Sheet ว่าง)")
-        st.stop()
-
-    # ✅ แปลง header เป็นพิมพ์เล็กและตัดช่องว่าง
-    headers = [h.strip().lower() for h in values[0]]  # ✅ ป้องกัน KeyError
-    rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers).fillna("").astype(str)  # ✅ ป้องกัน NaN และแปลงเป็น string
-
-    # ✅ Debug: ตรวจสอบ headers
-    st.write("📌 Headers from Google Sheets:", df.columns.tolist())
-
-    # ✅ ตรวจสอบว่ามีคอลัมน์ email หรือไม่
-    if "email" not in df.columns:
-        st.error("❌ ไม่พบคอลัมน์ 'email' ใน Google Sheets")
-        st.stop()
+    headers = values[0]
+    df = pd.DataFrame(values[1:], columns=headers)
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
@@ -47,8 +32,8 @@ if "email" not in st.session_state or not st.session_state["email"]:
     st.stop()
 
 # ✅ ดึงข้อมูลจาก Google Sheets ตามอีเมลที่ล็อกอิน
-email = st.session_state["email"].strip().lower()
-user_data = df[df["email"].str.strip().str.lower() == email]
+email = st.session_state["email"]
+user_data = df[df["email"] == email]
 
 if user_data.empty:
     st.error("❌ ไม่พบข้อมูลผู้ใช้")
@@ -61,25 +46,33 @@ st.set_page_config(page_title="Profile", page_icon="👤", layout="centered")
 st.title("Profile")
 
 st.markdown("#### Personal Information")
-first_name = st.text_input("First name *", user.get("first_name", ""))
-last_name = st.text_input("Last name *", user.get("last_name", ""))
-national_id = st.text_input("National ID *", user.get("national_id", ""), disabled=True)
-dob = st.date_input("Date of Birth *", pd.to_datetime(user.get("dob", ""), errors='coerce'))
+first_name = st.text_input("First name *", user["First Name"])
+last_name = st.text_input("Last name *", user["Last Name"])
+
+national_id = st.text_input("National ID *", user["National ID"], disabled=True)
+dob = st.date_input("Date of Birth *", pd.to_datetime(user["DOB"], errors='coerce'))
 
 gender_options = ["Male", "Female", "Other"]
-gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user.get("gender", "")) if user.get("gender", "") in gender_options else 0)
+gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["Gender"]) if user["Gender"] in gender_options else 0)
 
-nationality = st.text_input("Nationality *", user.get("nationality", ""))
+nationality = st.text_input("Nationality *", user["Nationality"])
 
 st.markdown("#### Address Information")
-address = st.text_area("Address (House Number, Road, Soi.) *", user.get("address", ""))
-province = st.text_input("Province *", user.get("province", ""))
-district = st.text_input("District *", user.get("district", ""))
-subdistrict = st.text_input("Subdistrict *", user.get("subdistrict", ""))
-zip_code = st.text_input("Zip Code *", user.get("zip_code", ""), disabled=True)
+address = st.text_area("Address (House Number, Road, Soi.) *", user["Address"])
 
-st.markdown("#### Account Information")
-st.text_input("Email address *", user.get("email", ""), disabled=True)
+province = st.text_input("Province *", user["Province"])
+district = st.text_input("District *", user["District"])
+subdistrict = st.text_input("Subdistrict *", user["Subdistrict"])
+zip_code = st.text_input("Zip Code *", user["Zip Code"], disabled=True)
+
+st.markdown("#### Skill Information")
+skills = ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"]
+selected_skills = st.multiselect("Skill *", skills, user["Skills"].split(", ") if user["Skills"] else [])
+
+additional_skill = st.text_area("Additional Skill", user["Additional Skill"])
+
+# ✅ แสดง email (อ่านอย่างเดียว)
+st.text_input("Email address *", user["email"], disabled=True)
 
 # ✅ ปุ่ม Submit (บันทึกการเปลี่ยนแปลง)
 if st.button("Save Profile"):
@@ -90,11 +83,13 @@ if st.button("Save Profile"):
         updated_values = [
             first_name, last_name, national_id, str(dob.date()), gender, nationality,
             address, province, district, subdistrict, zip_code, email,
-            user.get("password", "")  # ✅ คงค่า Password เดิมไว้
+            user["password"],  # ✅ คงค่า Password เดิมไว้
+            ", ".join(selected_skills),  # ✅ Skills
+            additional_skill  # ✅ Additional Skill
         ]
 
         # ✅ อัปเดตข้อมูลใน Google Sheets
-        sheet.update(f"A{row_index}:L{row_index}", [updated_values])
+        sheet.update(f"A{row_index}:O{row_index}", [updated_values])
 
         st.success("✅ บันทึกข้อมูลสำเร็จ!")
     except Exception as e:
