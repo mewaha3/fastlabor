@@ -29,15 +29,18 @@ try:
 
     headers = [h.strip().lower() for h in values[0]]  # ✅ แปลง header เป็นพิมพ์เล็ก
     rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers).fillna("")  # ✅ แก้ NaN เป็น ""
+    df = pd.DataFrame(rows, columns=headers).fillna("").astype(str)  # ✅ ป้องกัน NaN และแปลงเป็น string
 
-    # ✅ Debug: แสดงชื่อคอลัมน์ทั้งหมด
-    st.write("📌 Headers from Google Sheets:", headers)
+    # ✅ Debug: ตรวจสอบ headers
+    st.write("📌 Headers from Google Sheets:", df.columns.tolist())
 
     # ✅ ตรวจสอบว่ามีคอลัมน์ email และ password หรือไม่
-    if "email" not in headers or "password" not in headers:
+    if "email" not in df.columns or "password" not in df.columns:
         st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
         st.stop()
+
+    # ✅ Debug: แสดงข้อมูลตัวอย่าง
+    st.write("📌 Sample Data:", df.head())
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
