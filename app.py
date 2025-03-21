@@ -18,22 +18,24 @@ try:
 
     # ✅ เชื่อมต่อ Google Sheets
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
+    sheet = client.open("fastlabor").sheet1  
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
-    data = sheet.get_all_records()
+    values = sheet.get_all_values()
 
-    # ✅ ถ้าข้อมูลว่าง (Google Sheets ไม่มีข้อมูล)
-    if not data:
-        st.error("❌ ไม่พบข้อมูลใน Google Sheets")
+    if not values or len(values) < 2:
+        st.error("❌ ไม่พบข้อมูลใน Google Sheets (Sheet ว่าง)")
         st.stop()
 
-    # ✅ แปลงข้อมูลเป็น DataFrame และเปลี่ยน header เป็นตัวพิมพ์เล็ก
-    df = pd.DataFrame(data)
-    df.columns = df.columns.str.lower()  # ✅ ป้องกัน KeyError จากตัวพิมพ์เล็ก-ใหญ่
+    headers = [h.strip().lower() for h in values[0]]  # ✅ แปลง header เป็นพิมพ์เล็ก
+    rows = values[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    # ✅ Debug: แสดงชื่อคอลัมน์ทั้งหมด
+    st.write("📌 Headers from Google Sheets:", headers)
 
     # ✅ ตรวจสอบว่ามีคอลัมน์ email และ password หรือไม่
-    if "email" not in df.columns or "password" not in df.columns:
+    if "email" not in headers or "password" not in headers:
         st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
         st.stop()
 
@@ -62,7 +64,7 @@ st.write("""
 
 # ✅ ฟังก์ชันตรวจสอบการล็อกอิน
 def check_login(email, password):
-    email = email.strip().lower()  # ✅ ทำให้เป็นตัวพิมพ์เล็กเสมอ
+    email = email.strip().lower()  
     for index, row in df.iterrows():
         if row.get("email", "").strip().lower() == email and row.get("password", "").strip() == password:
             return True
@@ -103,7 +105,7 @@ st.page_link("pages/register.py", label="New Register", icon="📝")
 if login_button:
     if check_login(email, password):
         st.session_state["logged_in"] = True
-        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
+        st.session_state["email"] = email  
         st.success(f"Welcome, {email}!")
 
         # ✅ เปลี่ยนไปหน้า Home
