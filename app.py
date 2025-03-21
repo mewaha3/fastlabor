@@ -1,8 +1,4 @@
 import streamlit as st
-
-# ✅ `st.set_page_config()` ต้องเป็นคำสั่งแรกสุด
-st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
-
 import gspread
 import json
 import pandas as pd
@@ -12,28 +8,31 @@ from oauth2client.service_account import ServiceAccountCredentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
+    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud)
+    if "gcp" in st.secrets:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
+        # ✅ โหลด Credentials จากไฟล์ (สำหรับ Local)
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
+    # ✅ เชื่อมต่อ Google Sheets
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheets ของคุณ
 
     # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
-    values = sheet.get_all_values()
+    data = sheet.get_all_records()
 
-    if not values or len(values) < 2:
-        st.error("❌ ไม่พบข้อมูลใน Google Sheets (Sheet ว่าง)")
+    # ✅ ถ้าข้อมูลว่าง (Google Sheets ไม่มีข้อมูล)
+    if not data:
+        st.error("❌ ไม่พบข้อมูลใน Google Sheets")
         st.stop()
 
-    # ✅ แปลง header เป็นพิมพ์เล็กและตัดช่องว่าง
-    headers = [h.strip().lower() for h in values[0]]
-    rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers).fillna("").astype(str)  # ✅ ป้องกัน NaN และแปลงเป็น string
+    # ✅ แปลงข้อมูลเป็น DataFrame และเปลี่ยน header เป็นตัวพิมพ์เล็ก
+    df = pd.DataFrame(data)
+    df.columns = df.columns.str.lower()  # ✅ ป้องกัน KeyError จากตัวพิมพ์เล็ก-ใหญ่
 
-    # ✅ ตรวจสอบว่ามีคอลัมน์ email หรือไม่
+    # ✅ ตรวจสอบว่ามีคอลัมน์ email และ password หรือไม่
     if "email" not in df.columns or "password" not in df.columns:
         st.error("❌ ไม่พบคอลัมน์ 'email' หรือ 'password' ใน Google Sheets")
         st.stop()
@@ -42,18 +41,15 @@ except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ Debug: แสดง Headers และตัวอย่างข้อมูลหลังจาก `st.set_page_config()`
-st.write("📌 Headers from Google Sheets:", df.columns.tolist())
-st.write("📌 Sample Data:")
-st.dataframe(df.head())
-
 # ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "email" not in st.session_state:
     st.session_state["email"] = None
 
-# ✅ UI เริ่มต้น
+# ✅ ตั้งค่าหน้า Streamlit
+st.set_page_config(page_title="Fast Labor Login", page_icon="🔧", layout="centered")
+
 st.image("image.png", width=150)  # แสดงโลโก้
 st.title("FAST LABOR")
 
@@ -66,7 +62,7 @@ st.write("""
 
 # ✅ ฟังก์ชันตรวจสอบการล็อกอิน
 def check_login(email, password):
-    email = email.strip().lower()  
+    email = email.strip().lower()  # ✅ ทำให้เป็นตัวพิมพ์เล็กเสมอ
     for index, row in df.iterrows():
         if row.get("email", "").strip().lower() == email and row.get("password", "").strip() == password:
             return True
@@ -107,7 +103,7 @@ st.page_link("pages/register.py", label="New Register", icon="📝")
 if login_button:
     if check_login(email, password):
         st.session_state["logged_in"] = True
-        st.session_state["email"] = email  
+        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
         st.success(f"Welcome, {email}!")
 
         # ✅ เปลี่ยนไปหน้า Home
