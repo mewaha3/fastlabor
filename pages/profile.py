@@ -25,7 +25,7 @@ try:
         st.stop()
 
     # ✅ แปลง header เป็นพิมพ์เล็กและตัดช่องว่าง
-    headers = [h.strip().lower() for h in values[0]]
+    headers = [h.strip().lower() for h in values[0]]  # ✅ เปลี่ยนเป็นพิมพ์เล็กทั้งหมด
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers).fillna("")  # ✅ ป้องกัน NaN
 
@@ -48,7 +48,7 @@ if "email" not in st.session_state or not st.session_state["email"]:
 
 # ✅ ดึงข้อมูลจาก Google Sheets ตามอีเมลที่ล็อกอิน
 email = st.session_state["email"]
-user_data = df[df["email"] == email]
+user_data = df[df["email"].str.strip().str.lower() == email.strip().lower()]
 
 if user_data.empty:
     st.error("❌ ไม่พบข้อมูลผู้ใช้")
@@ -61,27 +61,32 @@ st.set_page_config(page_title="Profile", page_icon="👤", layout="centered")
 st.title("Profile")
 
 st.markdown("#### Personal Information")
-first_name = st.text_input("First name *", user["first_name"])  # ✅ ใช้ชื่อพิมพ์เล็ก
-last_name = st.text_input("Last name *", user["last_name"])
 
-national_id = st.text_input("National ID *", user["national_id"], disabled=True)
-dob = st.date_input("Date of Birth *", pd.to_datetime(user["dob"], errors='coerce'))
+# ✅ Debug: ตรวจสอบว่าคีย์ `first_name` มีอยู่จริงหรือไม่
+st.write("📌 Available keys in user data:", user.keys())
+
+# ✅ ใช้ชื่อคอลัมน์ที่ถูกต้อง
+first_name = st.text_input("First name *", user.get("first_name", ""))  # ✅ ใช้ `.get()` ป้องกัน KeyError
+last_name = st.text_input("Last name *", user.get("last_name", ""))
+
+national_id = st.text_input("National ID *", user.get("national_id", ""), disabled=True)
+dob = st.date_input("Date of Birth *", pd.to_datetime(user.get("dob", ""), errors='coerce'))
 
 gender_options = ["Male", "Female", "Other"]
-gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["gender"]) if user["gender"] in gender_options else 0)
+gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user.get("gender", "")) if user.get("gender", "") in gender_options else 0)
 
-nationality = st.text_input("Nationality *", user["nationality"])
+nationality = st.text_input("Nationality *", user.get("nationality", ""))
 
 st.markdown("#### Address Information")
-address = st.text_area("Address (House Number, Road, Soi.) *", user["address"])
+address = st.text_area("Address (House Number, Road, Soi.) *", user.get("address", ""))
 
-province = st.text_input("Province *", user["province"])
-district = st.text_input("District *", user["district"])
-subdistrict = st.text_input("Subdistrict *", user["subdistrict"])
-zip_code = st.text_input("Zip Code *", user["zip_code"], disabled=True)
+province = st.text_input("Province *", user.get("province", ""))
+district = st.text_input("District *", user.get("district", ""))
+subdistrict = st.text_input("Subdistrict *", user.get("subdistrict", ""))
+zip_code = st.text_input("Zip Code *", user.get("zip_code", ""), disabled=True)
 
 # ✅ แสดง email (อ่านอย่างเดียว)
-st.text_input("Email address *", user["email"], disabled=True)
+st.text_input("Email address *", user.get("email", ""), disabled=True)
 
 # ✅ ปุ่ม Submit (บันทึกการเปลี่ยนแปลง)
 if st.button("Save Profile"):
@@ -92,7 +97,7 @@ if st.button("Save Profile"):
         updated_values = [
             first_name, last_name, national_id, str(dob.date()), gender, nationality,
             address, province, district, subdistrict, zip_code, email,
-            user["password"],  # ✅ คงค่า Password เดิมไว้
+            user.get("password", ""),  # ✅ คงค่า Password เดิมไว้
         ]
 
         # ✅ อัปเดตข้อมูลใน Google Sheets
