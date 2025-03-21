@@ -1,21 +1,19 @@
 import streamlit as st
 import gspread
-import json
-from google.oauth2.service_account import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
 
-# ✅ ใช้ Streamlit Secrets แทน credentials.json
-creds_dict = json.loads(st.secrets["gcp_service_account"].to_json())
-
-# ✅ สร้าง Credentials จาก Secrets
-creds = Credentials.from_service_account_info(creds_dict)
-
-# ✅ เชื่อมต่อ Google Sheets API
+# ✅ ตั้งค่า Google Sheets API
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 client = gspread.authorize(creds)
+
+# ✅ เปิด Google Sheet
 sheet = client.open("fastlabor").sheet1  # เปลี่ยนเป็นชื่อ Google Sheet ของคุณ
 
-# ✅ ตั้งค่าหน้า
+# ✅ ตั้งค่าหน้า Streamlit
 st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
-st.image("image.png", width=150)  
+
+st.image("image.png", width=150)  # แสดงโลโก้
 st.title("New Member")
 
 # ✅ ฟอร์มลงทะเบียน
@@ -44,10 +42,14 @@ if submit_button:
         
         st.success(f"🎉 Welcome, {first_name}! You have successfully registered.")
 
-        # ✅ เก็บอีเมลใน Session State
+        # ✅ เก็บ email ใน session state เพื่อนำไปใช้ใน upload.py
         st.session_state["user_email"] = email
 
-        # ✅ นำทางไปหน้า upload.py
+        # ✅ เปลี่ยนไปหน้า upload.py
         st.switch_page("upload.py")
+
     else:
         st.error("⚠️ กรุณากรอกข้อมูลให้ครบทุกช่องที่จำเป็น")
+
+# ✅ ปุ่มกลับไปหน้าล็อกอิน
+st.page_link("app.py", label="⬅️ Back to Login", icon="🔙")
