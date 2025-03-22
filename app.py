@@ -37,7 +37,7 @@ if "email" not in st.session_state:
     st.session_state["email"] = None
 
 # ✅ UI เริ่มต้น
-st.image("image.png", width=150) # แสดงโลโก้
+st.image("image.png", width=150)  # แสดงโลโก้
 
 st.markdown(
     """
@@ -64,7 +64,7 @@ if st.session_state["logged_in"]:
     st.success(f"✅ Logged in as {st.session_state['email']}")
 
     # ปุ่มไปหน้า Home
-    st.page_link("pages/home.py", label="Go to Homepage", icon="")
+    st.page_link("pages/home.py", label="Go to Homepage")
 
     # ปุ่ม Logout
     if st.button("Logout"):
@@ -85,18 +85,19 @@ with st.form("login_form"):
     with col1:
         login_button = st.form_submit_button("Submit")
     with col2:
-        st.page_link("pages/reset_password.py", label="Forget password?", icon="", help="Click here to reset your password")
+        # ✅ แก้ไขจุดที่ error โดยลบ icon=""
+        st.page_link("pages/reset_password.py", label="Forget password?", help="Click here to reset your password")
 
 st.markdown("---")
 st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
 
-st.page_link("pages/register.py", label="New Register", icon="")
+st.page_link("pages/register.py", label="New Register")
 
 # ✅ ตรวจสอบข้อมูลที่ผู้ใช้ป้อน
 if login_button:
     if check_login(email, password):
         st.session_state["logged_in"] = True
-        st.session_state["email"] = email # ✅ บันทึก email ที่ล็อกอินสำเร็จ
+        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
         st.success(f"Welcome, {email}!")
 
         # ✅ เปลี่ยนไปหน้า Home
