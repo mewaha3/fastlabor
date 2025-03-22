@@ -4,11 +4,11 @@ import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 
-# ✅ ตั้งค่าหน้า Streamlit
+# ✅ ตั้งค่าหน้า
 st.set_page_config(page_title="Edit Profile", page_icon="📝", layout="centered")
-st.title("Edit Profile")
+st.title("Edit Your Profile")
 
-# ✅ กำหนด Scope และโหลด Credentials
+# ✅ เชื่อมต่อ Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
@@ -24,62 +24,61 @@ try:
     df = pd.DataFrame(data)
 
 except Exception as e:
-    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.error(f"❌ ไม่สามารถเชื่อมต่อ Google Sheets: {e}")
     st.stop()
 
-# ✅ ตรวจสอบว่า email ของผู้ใช้ login อยู่ใน session หรือให้กรอก
-if "user_email" in st.session_state:
-    email = st.session_state["user_email"]
-else:
-    email = st.text_input("Enter your email to edit profile")
+# ✅ ตรวจสอบ email ที่ login
+if "user_email" not in st.session_state:
+    st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนแก้ไขข้อมูล")
+    st.stop()
 
-if email:
-    user_data = df[df["email"] == email]
-    
-    if not user_data.empty:
-        user = user_data.iloc[0]
+email = st.session_state["user_email"]
+user_data = df[df["email"] == email]
 
-        # ✅ Personal Info
-        st.markdown("### Personal Information")
-        first_name = st.text_input("First name *", user["first_name"])
-        last_name = st.text_input("Last name *", user["last_name"])
-        national_id = st.text_input("National ID *", user["national_id"], disabled=True)
-        dob = st.date_input("Date of Birth *", pd.to_datetime(user["dob"], errors='coerce'))
-        gender_options = ["Male", "Female", "Other"]
-        gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["gender"]) if user["gender"] in gender_options else 0)
-        nationality = st.text_input("Nationality *", user["nationality"])
+if user_data.empty:
+    st.error("❌ ไม่พบผู้ใช้งานในระบบ")
+    st.stop()
 
-        # ✅ Address
-        st.markdown("### Address")
-        address = st.text_area("Address (House Number, Road, Soi.) *", user["address"])
-        province = st.text_input("Province *", user["province"])
-        district = st.text_input("District *", user["district"])
-        subdistrict = st.text_input("Subdistrict *", user["subdistrict"])
-        zip_code = st.text_input("Zip Code *", user["zip_code"], disabled=True)
+user = user_data.iloc[0]
 
-        # ✅ Account Info
-        st.markdown("### Account")
-        password = st.text_input("Password *", value=user["password"], type="password")
+# ✅ แสดงฟอร์มแก้ไขข้อมูล (ยกเว้น password)
+st.markdown("### Personal Information")
+first_name = st.text_input("First name *", user["first_name"])
+last_name = st.text_input("Last name *", user["last_name"])
+national_id = st.text_input("National ID *", user["national_id"], disabled=True)
+dob = st.date_input("Date of Birth *", pd.to_datetime(user["dob"], errors="coerce"))
+gender_options = ["Male", "Female", "Other"]
+gender = st.selectbox("Gender *", gender_options, index=gender_options.index(user["gender"]) if user["gender"] in gender_options else 0)
+nationality = st.text_input("Nationality *", user["nationality"])
 
-        # ✅ Additional Docs
-        st.markdown("### Additional Documents (optional)")
-        certificate = st.text_input("Certificate", user.get("certificate", ""))
-        passport = st.text_input("Passport", user.get("passport", ""))
-        visa = st.text_input("Visa", user.get("visa", ""))
-        work_permit = st.text_input("Work Permit", user.get("work_permit", ""))
+st.markdown("### Address")
+address = st.text_area("Address *", user["address"])
+province = st.text_input("Province *", user["province"])
+district = st.text_input("District *", user["district"])
+subdistrict = st.text_input("Subdistrict *", user["subdistrict"])
+zip_code = st.text_input("Zip Code *", user["zip_code"], disabled=True)
 
-        # ✅ บันทึกข้อมูล
-        if st.button("Save Changes"):
-            try:
-                row_index = user_data.index[0] + 2  # +2 เพราะ header เริ่มแถว 1 และ df เริ่มที่ index 0
-                sheet.update(f"A{row_index}:Q{row_index}", [[
-                    first_name, last_name, national_id, str(dob), gender, nationality,
-                    address, province, district, subdistrict, zip_code,
-                    email, password, certificate, passport, visa, work_permit
-                ]])
-                st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว")
-            except Exception as e:
-                st.error(f"❌ ไม่สามารถบันทึกข้อมูลได้: {e}")
+st.markdown("### Account")
+st.text_input("Email address", user["email"], disabled=True)
 
-    else:
-        st.warning("ไม่พบผู้ใช้งานในระบบ กรุณาตรวจสอบ email")
+st.markdown("### Documents (Optional)")
+certificate = st.text_input("Certificate", user.get("certificate", ""))
+passport = st.text_input("Passport", user.get("passport", ""))
+visa = st.text_input("Visa", user.get("visa", ""))
+work_permit = st.text_input("Work Permit", user.get("work_permit", ""))
+
+# ✅ ปุ่มบันทึก
+if st.button("💾 Save Changes"):
+    try:
+        row_index = user_data.index[0] + 2  # +2 because headers = row 1, DataFrame index starts at 0
+
+        sheet.update(f"A{row_index}:Q{row_index}", [[
+            first_name, last_name, national_id, str(dob), gender, nationality,
+            address, province, district, subdistrict, zip_code,
+            email, user["password"], certificate, passport, visa, work_permit
+        ]])
+
+        st.success("✅ ข้อมูลถูกบันทึกเรียบร้อยแล้ว!")
+
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาดขณะบันทึก: {e}")
