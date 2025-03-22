@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
 # ✅ ตั้งค่า Streamlit
 st.set_page_config(page_title="My Profile", page_icon="🙍", layout="centered")
@@ -51,14 +52,21 @@ if not user_row:
 user_data = sheet.row_values(user_row)
 profile_data = dict(zip(headers, user_data))
 
-# ✅ แสดงฟอร์มแก้ไขข้อมูล (ไม่รวม password)
+# ✅ แปลงวันเกิดจาก string → datetime.date (สำหรับ date_input)
+dob_str = profile_data.get("date of birth", "")
+try:
+    dob_default = datetime.strptime(dob_str, "%Y-%m-%d").date() if dob_str else datetime.today().date()
+except Exception:
+    dob_default = datetime.today().date()
+
+# ✅ ฟอร์มแก้ไขข้อมูล
 with st.form("edit_profile"):
     st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
 
     first_name = st.text_input("First Name", value=profile_data.get("first name", ""))
     last_name = st.text_input("Last Name", value=profile_data.get("last name", ""))
     national_id = st.text_input("National ID", value=profile_data.get("national id", ""))
-    dob = st.date_input("Date of Birth", value=profile_data.get("date of birth", ""))
+    dob = st.date_input("Date of Birth", value=dob_default)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"],
                           index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
     nationality = st.text_input("Nationality", value=profile_data.get("nationality", ""))
