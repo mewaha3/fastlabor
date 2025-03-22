@@ -9,11 +9,10 @@ st.image("image.png", width=150)
 st.title("🧑‍💼 ข้อมูลโปรไฟล์ส่วนตัว")
 
 # ✅ ตรวจสอบ Session
-if "user_email" not in st.session_state:
+user_email = st.session_state.get("user_email") or st.session_state.get("email")
+if not user_email:
     st.error("⚠️ กรุณาลงชื่อเข้าใช้ก่อน")
     st.stop()
-
-user_email = st.session_state["user_email"]
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -26,7 +25,7 @@ try:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1  # เปลี่ยนชื่อชีตหากจำเป็น
+    sheet = client.open("fastlabor").sheet1
     values = sheet.get_all_values()
     headers = [h.strip().lower() for h in values[0]]
 
@@ -40,18 +39,19 @@ if "email" not in headers:
     st.stop()
 
 email_col = headers.index("email")
-user_row = next((i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email), None)
+user_row = next(
+    (i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email),
+    None
+)
 
 if not user_row:
     st.error(f"⚠️ ไม่พบข้อมูลของ {user_email}")
     st.stop()
 
 user_data = sheet.row_values(user_row)
-
-# ✅ Map ข้อมูลกับ headers
 profile_data = dict(zip(headers, user_data))
 
-# ✅ สร้างฟอร์มแก้ไขข้อมูล
+# ✅ แสดงฟอร์มแก้ไขข้อมูล (ไม่รวม password)
 with st.form("edit_profile"):
     st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
 
@@ -59,22 +59,24 @@ with st.form("edit_profile"):
     last_name = st.text_input("Last Name", value=profile_data.get("last name", ""))
     national_id = st.text_input("National ID", value=profile_data.get("national id", ""))
     dob = st.date_input("Date of Birth", value=profile_data.get("date of birth", ""))
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"],
+                          index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
     nationality = st.text_input("Nationality", value=profile_data.get("nationality", ""))
     address = st.text_area("Address", value=profile_data.get("address", ""))
     province = st.text_input("Province", value=profile_data.get("province", ""))
     district = st.text_input("District", value=profile_data.get("district", ""))
     subdistrict = st.text_input("Subdistrict", value=profile_data.get("subdistrict", ""))
     zip_code = st.text_input("Zip Code", value=profile_data.get("zip code", ""))
-    email = st.text_input("Email", value=user_email, disabled=True)
+    email = st.text_input("Email (ไม่สามารถแก้ไขได้)", value=user_email, disabled=True)
 
     submitted = st.form_submit_button("💾 Save")
 
+# ✅ บันทึกการเปลี่ยนแปลง
 if submitted:
     try:
         update_values = [
             first_name, last_name, national_id, str(dob), gender, nationality,
-            address, province, district, subdistrict, zip_code, user_email  # <-- ไม่แก้ไข
+            address, province, district, subdistrict, zip_code, user_email
         ]
 
         for i, val in enumerate(update_values):
