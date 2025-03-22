@@ -4,25 +4,22 @@ import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 
-# ✅ ตั้งค่า Streamlit Page (ต้องเป็นคำสั่งแรก)
+# ✅ ตั้งค่า Streamlit Page
 st.set_page_config(page_title="Fast Labor Login", page_icon="", layout="centered")
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 try:
-    # ✅ โหลด Credentials จาก Streamlit Secrets (สำหรับ Cloud) หรือ Local
-    if "gcp" in st.secrets:
+    # ✅ โหลด credentials จาก Cloud (ผ่าน st.secrets) หรือ local
+    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-    # ✅ เชื่อมต่อ Google Sheets
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1 
-
-    # ✅ โหลดข้อมูลทั้งหมดจาก Google Sheets
+    sheet = client.open("fastlabor").sheet1
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
@@ -30,46 +27,43 @@ except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ ตรวจสอบว่า Session State สำหรับล็อกอินมีหรือไม่
+# ✅ ตั้งค่า session state
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "email" not in st.session_state:
     st.session_state["email"] = None
+if "user_email" not in st.session_state:
+    st.session_state["user_email"] = None
 
-# ✅ UI เริ่มต้น
-st.image("image.png", width=150)  # แสดงโลโก้
+# ✅ แสดงโลโก้และข้อมูลเบื้องต้น
+st.image("image.png", width=150)
 
 st.markdown(
     """
     <h1 style='text-align: center;'>FAST LABOR</h1>
-    <h3 style='text-align: center; color: gray;'>FAST LABOR - FAST JOB, FULL TRUST, GREAT WORKER</h3>
-    <p style='text-align: center;'>
-    แพลตฟอร์มที่เชื่อมต่อคนทำงานและลูกค้าที่ต้องการแรงงานเร่งด่วน 
-    ไม่ว่าจะเป็นงานบ้าน งานสวน งานก่อสร้าง หรือจ้างแรงงานอื่น ๆ 
-    เราช่วยให้คุณหาคนทำงานได้อย่างรวดเร็วและง่ายดาย
-    </p>
+    <h3 style='text-align: center; color: gray;'>FAST JOB, FULL TRUST, GREAT WORKER</h3>
+    <p style='text-align: center;'>แพลตฟอร์มที่เชื่อมต่อคนทำงานกับลูกค้าที่ต้องการแรงงานเร่งด่วน</p>
     """,
     unsafe_allow_html=True
 )
 
-# ✅ ฟังก์ชันตรวจสอบการล็อกอินจาก Google Sheets
+# ✅ ฟังก์ชันตรวจสอบการล็อกอิน
 def check_login(email, password):
     if "email" in df.columns and "password" in df.columns:
         user_data = df[(df["email"] == email) & (df["password"] == password)]
         return not user_data.empty
     return False
 
-# ✅ ถ้าผู้ใช้ล็อกอินแล้วให้แสดงหน้า Dashboard
+# ✅ ถ้า login แล้ว ให้ไปหน้า home.py
 if st.session_state["logged_in"]:
     st.success(f"✅ Logged in as {st.session_state['email']}")
 
-    # ปุ่มไปหน้า Home
-    st.page_link("pages/home.py", label="Go to Homepage")
+    st.page_link("pages/home.py", label="ไปหน้า Homepage")
 
-    # ปุ่ม Logout
     if st.button("Logout"):
         st.session_state["logged_in"] = False
         st.session_state["email"] = None
+        st.session_state["user_email"] = None
         st.experimental_rerun()
 
     st.stop()
@@ -85,22 +79,21 @@ with st.form("login_form"):
     with col1:
         login_button = st.form_submit_button("Submit")
     with col2:
-        # ✅ แก้ไขจุดที่ error โดยลบ icon=""
         st.page_link("pages/reset_password.py", label="Forget password?", help="Click here to reset your password")
 
 st.markdown("---")
 st.markdown('<p style="text-align:center;">or</p>', unsafe_allow_html=True)
-
 st.page_link("pages/register.py", label="New Register")
 
-# ✅ ตรวจสอบข้อมูลที่ผู้ใช้ป้อน
+# ✅ ตรวจสอบการล็อกอิน
 if login_button:
     if check_login(email, password):
         st.session_state["logged_in"] = True
-        st.session_state["email"] = email  # ✅ บันทึก email ที่ล็อกอินสำเร็จ
+        st.session_state["email"] = email
+        st.session_state["user_email"] = email  # ✅ จำเป็นมาก สำหรับ profile.py
         st.success(f"Welcome, {email}!")
 
-        # ✅ เปลี่ยนไปหน้า Home
+        # ✅ ไปหน้า home
         st.switch_page("pages/home.py")
     else:
         st.error("❌ Invalid email or password. Please try again.")
