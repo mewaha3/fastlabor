@@ -7,7 +7,7 @@ from datetime import datetime
 # ✅ ตั้งค่า Streamlit
 st.set_page_config(page_title="My Full Profile", page_icon="🙍", layout="centered")
 st.image("image.png", width=150)
-st.title("👤 My Full Profile")
+st.title("👤 My Profile")
 
 # ✅ ตรวจสอบ Session
 user_email = st.session_state.get("user_email") or st.session_state.get("email")
@@ -55,7 +55,7 @@ try:
 except:
     dob_default = datetime.today().date()
 
-# ✅ ฟอร์มแก้ไขข้อมูล
+# ✅ ฟอร์มแก้ไขข้อมูล + เอกสาร
 with st.form("edit_profile"):
     st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
 
@@ -73,11 +73,14 @@ with st.form("edit_profile"):
     zip_code = st.text_input("Zip Code", value=profile_data.get("zip_code", ""))
     email = st.text_input("Email (ไม่สามารถแก้ไขได้)", value=user_email, disabled=True)
 
-    st.markdown("### 📎 แก้ไขชื่อไฟล์เอกสาร (ถ้ามี)")
-    certificate = st.text_input("📄 Certificate", value=profile_data.get("certificate", ""))
-    passport = st.text_input("📄 Passport", value=profile_data.get("passport", ""))
-    visa = st.text_input("📄 Visa", value=profile_data.get("visa", ""))
-    work_permit = st.text_input("📄 Work Permit", value=profile_data.get("work_permit", ""))
+    # ✅ อัปโหลดเอกสารใหม่
+    st.markdown("### 📎 อัปโหลดเอกสารใหม่ (ถ้าต้องการอัปเดต)")
+    file_types = ["pdf", "png"]
+
+    certificate = st.file_uploader("📄 Certificate", type=file_types)
+    passport = st.file_uploader("📄 Passport", type=file_types)
+    visa = st.file_uploader("📄 Visa", type=file_types)
+    work_permit = st.file_uploader("📄 Work Permit", type=file_types)
 
     submitted = st.form_submit_button("💾 Save")
 
@@ -86,19 +89,31 @@ if submitted:
     try:
         update_values = [
             first_name, last_name, national_id, str(dob), gender, nationality,
-            address, province, district, subdistrict, zip_code, user_email,
-            "",  # password (ไม่อัปเดต)
-            certificate, passport, visa, work_permit
+            address, province, district, subdistrict, zip_code, user_email
         ]
 
-        # อัปเดตทุก column จาก A ถึง Q (1 ถึง 17)
+        # อัปเดตช่อง 1-12 (ไม่แก้ password)
         for i, val in enumerate(update_values):
             sheet.update_cell(user_row, i + 1, val)
 
-        st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
+        # อัปเดตชื่อไฟล์เอกสาร (ช่อง 14-17)
+        doc_updates = []
+        if certificate:
+            doc_updates.append((14, certificate.name))
+        if passport:
+            doc_updates.append((15, passport.name))
+        if visa:
+            doc_updates.append((16, visa.name))
+        if work_permit:
+            doc_updates.append((17, work_permit.name))
+
+        for col, filename in doc_updates:
+            sheet.update_cell(user_row, col, filename)
+
+        st.success("✅ บันทึกข้อมูลและเอกสารเรียบร้อยแล้ว!")
 
     except Exception as e:
         st.error(f"❌ เกิดข้อผิดพลาดในการอัปเดตข้อมูล: {e}")
 
-# ✅ ปุ่มกลับไปหน้า Home
+# ✅ ปุ่มกลับหน้า Home
 st.page_link("pages/home.py", label="🏠 Go to Home", icon="🏠")
