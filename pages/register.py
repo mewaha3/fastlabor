@@ -1,4 +1,8 @@
 import streamlit as st
+
+# ✅ ต้องเรียกก่อนคำสั่งอื่นทั้งหมด
+st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
+
 import json
 import pandas as pd
 import gspread
@@ -46,8 +50,7 @@ except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="New Member Registration", page_icon="📝", layout="centered")
+# ✅ ส่วน UI
 st.image("image.png", width=150)
 st.title("New Member Registration")
 
