@@ -1,77 +1,86 @@
 import streamlit as st
 import gspread
 import json
-import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ✅ ตั้งค่า Streamlit
-st.set_page_config(page_title="User Profile", page_icon="👤", layout="centered")
-st.title("👤 My Profile")
+st.set_page_config(page_title="My Profile", page_icon="🙍", layout="centered")
+st.image("image.png", width=150)
+st.title("🧑‍💼 ข้อมูลโปรไฟล์ส่วนตัว")
 
-# ✅ ตรวจสอบการ login
-if "user_email" not in st.session_state or not st.session_state["user_email"]:
-    st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนดูข้อมูล")
-    st.page_link("app.py", label="⬅️ กลับไปหน้า Login", icon="🔙")
+# ✅ ตรวจสอบ Session
+if "user_email" not in st.session_state:
+    st.error("⚠️ กรุณาลงชื่อเข้าใช้ก่อน")
     st.stop()
 
-email = st.session_state["user_email"]
+user_email = st.session_state["user_email"]
 
-# ✅ เชื่อมต่อ Google Sheets
+# ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
 try:
-    if "gcp" in st.secrets:
+    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
     client = gspread.authorize(creds)
-    sheet = client.open("fastlabor").sheet1
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
+    sheet = client.open("fastlabor").sheet1  # เปลี่ยนชื่อชีตหากจำเป็น
+    values = sheet.get_all_values()
+    headers = [h.strip().lower() for h in values[0]]
+
 except Exception as e:
-    st.error(f"❌ ไม่สามารถเชื่อมต่อ Google Sheets: {e}")
+    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
     st.stop()
 
-# ✅ ค้นหาข้อมูลผู้ใช้
-user_data = df[df["email"] == email]
-if user_data.empty:
-    st.error("❌ ไม่พบข้อมูลผู้ใช้งาน")
+# ✅ หาตำแหน่งแถวของผู้ใช้
+if "email" not in headers:
+    st.error("❌ ไม่มีคอลัมน์ email ใน Google Sheets")
     st.stop()
 
-user = user_data.iloc[0]  # ดึง row แรกของผู้ใช้
+email_col = headers.index("email")
+user_row = next((i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email), None)
 
-# ✅ แสดงข้อมูลในรูปแบบ Read-Only
-st.markdown("### 🧍 Personal Info")
-st.text_input("First Name", user["first_name"], disabled=True)
-st.text_input("Last Name", user["last_name"], disabled=True)
-st.text_input("National ID", user["national_id"], disabled=True)
-st.text_input("Date of Birth", user["dob"], disabled=True)
-st.text_input("Gender", user["gender"], disabled=True)
-st.text_input("Nationality", user["nationality"], disabled=True)
+if not user_row:
+    st.error(f"⚠️ ไม่พบข้อมูลของ {user_email}")
+    st.stop()
 
-st.markdown("### 🏡 Address")
-st.text_area("Address", user["address"], disabled=True)
-st.text_input("Province", user["province"], disabled=True)
-st.text_input("District", user["district"], disabled=True)
-st.text_input("Subdistrict", user["subdistrict"], disabled=True)
-st.text_input("Zip Code", user["zip_code"], disabled=True)
+user_data = sheet.row_values(user_row)
 
-st.markdown("### 📧 Account")
-st.text_input("Email", user["email"], disabled=True)
+# ✅ Map ข้อมูลกับ headers
+profile_data = dict(zip(headers, user_data))
 
-st.markdown("### 📄 Documents")
-st.text_input("Certificate", user.get("certificate", ""), disabled=True)
-st.text_input("Passport", user.get("passport", ""), disabled=True)
-st.text_input("Visa", user.get("visa", ""), disabled=True)
-st.text_input("Work Permit", user.get("work_permit", ""), disabled=True)
+# ✅ สร้างฟอร์มแก้ไขข้อมูล
+with st.form("edit_profile"):
+    st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
 
-# ✅ ปุ่มย้อนกลับหรือ logout
-col1, col2 = st.columns(2)
-with col1:
-    st.page_link("pages/edit_profile.py", label="✏️ Edit Profile")
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state["logged_in"] = False
-        st.session_state["user_email"] = None
-        st.experimental_rerun()
+    first_name = st.text_input("First Name", value=profile_data.get("first name", ""))
+    last_name = st.text_input("Last Name", value=profile_data.get("last name", ""))
+    national_id = st.text_input("National ID", value=profile_data.get("national id", ""))
+    dob = st.date_input("Date of Birth", value=profile_data.get("date of birth", ""))
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
+    nationality = st.text_input("Nationality", value=profile_data.get("nationality", ""))
+    address = st.text_area("Address", value=profile_data.get("address", ""))
+    province = st.text_input("Province", value=profile_data.get("province", ""))
+    district = st.text_input("District", value=profile_data.get("district", ""))
+    subdistrict = st.text_input("Subdistrict", value=profile_data.get("subdistrict", ""))
+    zip_code = st.text_input("Zip Code", value=profile_data.get("zip code", ""))
+    email = st.text_input("Email", value=user_email, disabled=True)
+
+    submitted = st.form_submit_button("💾 Save")
+
+if submitted:
+    try:
+        update_values = [
+            first_name, last_name, national_id, str(dob), gender, nationality,
+            address, province, district, subdistrict, zip_code, user_email  # <-- ไม่แก้ไข
+        ]
+
+        for i, val in enumerate(update_values):
+            sheet.update_cell(user_row, i + 1, val)
+
+        st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
+
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาดในการอัปเดตข้อมูล: {e}")
