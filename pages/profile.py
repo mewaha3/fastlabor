@@ -1,25 +1,24 @@
 import streamlit as st
 import gspread
 import json
+import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
 
-# ✅ ตั้งค่า Streamlit
-st.set_page_config(page_title="My Profile", page_icon="🙍", layout="centered")
-st.image("image.png", width=150)
-st.title("🧑‍💼 ข้อมูลโปรไฟล์ส่วนตัว")
+st.set_page_config(page_title="My Profile", page_icon="👤", layout="centered")
+st.title("👤 My Full Profile")
 
-# ✅ ตรวจสอบ Session
-user_email = st.session_state.get("user_email") or st.session_state.get("email")
-if not user_email:
-    st.error("⚠️ กรุณาลงชื่อเข้าใช้ก่อน")
+# ✅ ตรวจสอบ Login
+if "user_email" not in st.session_state or not st.session_state["user_email"]:
+    st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนดูข้อมูล")
+    st.page_link("app.py", label="⬅️ กลับหน้า Login", icon="🔙")
     st.stop()
 
-# ✅ ตั้งค่า Google Sheets API
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+email = st.session_state["user_email"]
 
+# ✅ เชื่อมต่อ Google Sheets
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 try:
-    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
+    if "gcp" in st.secrets:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     else:
@@ -27,70 +26,57 @@ try:
 
     client = gspread.authorize(creds)
     sheet = client.open("fastlabor").sheet1
-    values = sheet.get_all_values()
-    headers = [h.strip().lower() for h in values[0]]
-
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
 except Exception as e:
-    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.error(f"❌ ไม่สามารถเชื่อมต่อ Google Sheets: {e}")
     st.stop()
 
-# ✅ หาตำแหน่งแถวของผู้ใช้
-if "email" not in headers:
-    st.error("❌ ไม่มีคอลัมน์ email ใน Google Sheets")
+# ✅ ดึงข้อมูลของผู้ใช้จากอีเมล
+user_data = df[df["email"] == email]
+if user_data.empty:
+    st.error("❌ ไม่พบข้อมูลผู้ใช้งานในระบบ")
     st.stop()
 
-email_col = headers.index("email")
-user_row = next(
-    (i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email),
-    None
-)
+user = user_data.iloc[0]
+row_index = user_data.index[0] + 2  # +2 เพราะ header อยู่ที่แถว 1
 
-if not user_row:
-    st.error(f"⚠️ ไม่พบข้อมูลของ {user_email}")
-    st.stop()
+# ✅ แสดงข้อมูลแบบแก้ไขได้ (ยกเว้น email, national_id)
+st.markdown("### 🧍 Personal Info")
+first_name = st.text_input("First Name", user.get("first_name", ""))
+last_name = st.text_input("Last Name", user.get("last_name", ""))
+national_id = st.text_input("National ID", user.get("national_id", ""), disabled=True)
+dob = st.text_input("Date of Birth", user.get("dob", ""))
+gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(user.get("gender", "Male")))
+nationality = st.text_input("Nationality", user.get("nationality", ""))
 
-user_data = sheet.row_values(user_row)
-profile_data = dict(zip(headers, user_data))
+st.markdown("### 🏡 Address")
+address = st.text_area("Address", user.get("address", ""))
+province = st.text_input("Province", user.get("province", ""))
+district = st.text_input("District", user.get("district", ""))
+subdistrict = st.text_input("Subdistrict", user.get("subdistrict", ""))
+zip_code = st.text_input("Zip Code", user.get("zip_code", ""))
 
-# ✅ แปลงวันเกิดจาก string → datetime.date (สำหรับ date_input)
-dob_str = profile_data.get("date of birth", "")
-try:
-    dob_default = datetime.strptime(dob_str, "%Y-%m-%d").date() if dob_str else datetime.today().date()
-except Exception:
-    dob_default = datetime.today().date()
+st.markdown("### 📧 Account")
+st.text_input("Email", user.get("email", ""), disabled=True)
 
-# ✅ ฟอร์มแก้ไขข้อมูล
-with st.form("edit_profile"):
-    st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
+st.markdown("### 📎 Documents (from upload.py)")
+certificate = st.text_input("Certificate", user.get("certificate", ""))
+passport = st.text_input("Passport", user.get("passport", ""))
+visa = st.text_input("Visa", user.get("visa", ""))
+work_permit = st.text_input("Work Permit", user.get("work_permit", ""))
 
-    first_name = st.text_input("First Name", value=profile_data.get("first name", ""))
-    last_name = st.text_input("Last Name", value=profile_data.get("last name", ""))
-    national_id = st.text_input("National ID", value=profile_data.get("national id", ""))
-    dob = st.date_input("Date of Birth", value=dob_default)
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"],
-                          index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
-    nationality = st.text_input("Nationality", value=profile_data.get("nationality", ""))
-    address = st.text_area("Address", value=profile_data.get("address", ""))
-    province = st.text_input("Province", value=profile_data.get("province", ""))
-    district = st.text_input("District", value=profile_data.get("district", ""))
-    subdistrict = st.text_input("Subdistrict", value=profile_data.get("subdistrict", ""))
-    zip_code = st.text_input("Zip Code", value=profile_data.get("zip code", ""))
-    email = st.text_input("Email (ไม่สามารถแก้ไขได้)", value=user_email, disabled=True)
-
-    submitted = st.form_submit_button("💾 Save")
-
-# ✅ บันทึกการเปลี่ยนแปลง
-if submitted:
+# ✅ บันทึกการแก้ไข
+if st.button("💾 Save Changes"):
     try:
-        update_values = [
-            first_name, last_name, national_id, str(dob), gender, nationality,
-            address, province, district, subdistrict, zip_code, user_email
-        ]
-
-        for i, val in enumerate(update_values):
-            sheet.update_cell(user_row, i + 1, val)
-
-        st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
-
+        sheet.update(f"A{row_index}:Q{row_index}", [[
+            first_name, last_name, national_id, dob, gender, nationality,
+            address, province, district, subdistrict, zip_code,
+            email, user.get("password", ""), certificate, passport, visa, work_permit
+        ]])
+        st.success("✅ ข้อมูลถูกบันทึกแล้วเรียบร้อย")
     except Exception as e:
-        st.error(f"❌ เกิดข้อผิดพลาดในการอัปเดตข้อมูล: {e}")
+        st.error(f"❌ บันทึกข้อมูลไม่สำเร็จ: {e}")
+
+# ✅ ปุ่มกลับหน้า Home
+st.page_link("pages/home.py", label="🏠 Go to Home", icon="🏡")
