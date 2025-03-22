@@ -1,0 +1,93 @@
+import streamlit as st
+
+st.set_page_config(layout="centered")
+
+# Header & Navigation
+st.markdown("""
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div><strong>FAST LABOR</strong></div>
+    <div>
+        <a href="#" style="margin-right: 20px;">Find Job</a>
+        <a href="#" style="margin-right: 20px;">My Job</a>
+        <a href="#" style="background-color: black; color: white; padding: 5px 10px; border-radius: 4px;">Profile</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Title
+st.markdown("## Find Job")
+st.markdown("For generate list of employee who was matching with job")
+
+# Image
+st.image("https://i.ibb.co/pX7FfWB/findjob.png", use_column_width=True)
+
+# Sample job list
+jobs = [
+    {
+        "title": "List Job",
+        "type": "ก่อสร้าง",
+        "detail": "Job Detail",
+        "date": "20/03/2025",
+        "time": "08:00 - 17:00",
+        "address": "Bangkok",
+        "salary": "500 - 600 THB/day",
+        "status": ""
+    },
+    {
+        "title": "List Job",
+        "type": "พนักงานขนของ",
+        "detail": "Job Detail",
+        "date": "22/03/2025",
+        "time": "09:00 - 18:00",
+        "address": "Nonthaburi",
+        "salary": "550 - 650 THB/day",
+        "status": "Accepted"
+    },
+    {
+        "title": "List Job",
+        "type": "พนักงานร้านอาหาร",
+        "detail": "Job Detail",
+        "date": "25/03/2025",
+        "time": "10:00 - 15:00",
+        "address": "Pathumthani",
+        "salary": "400 - 500 THB/day",
+        "status": ""
+    }
+]
+
+# Display job cards
+for i, job in enumerate(jobs):
+    with st.container():
+        st.markdown(f"### {job['title']}")
+        st.write(f"ประเภทงาน: {job['type']}")
+        st.write(f"รายละเอียด: {job['detail']}")
+        st.write(f"วันเวลา: {job['date']} | {job['time']}")
+        st.write(f"สถานที่: {job['address']}")
+        st.write(f"ช่วงรายได้: {job['salary']}")
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("Decline", key=f"decline_{i}"):
+                jobs[i]["status"] = "Decline"
+        with col2:
+            if st.button("Accept", key=f"accept_{i}"):
+                jobs[i]["status"] = "Accepted"
+        
+        if job["status"] == "Accepted":
+            st.success("✅ Accepted")
+        elif job["status"] == "Decline":
+            st.error("❌ Declined")
+
+        st.markdown("---")
+
+# Refresh Button
+st.markdown(
+    """
+    <div style='text-align: center; margin-top: 30px;'>
+        <button style='background-color: black; color: white; padding: 10px 30px; border-radius: 5px; font-weight: bold;'>
+            Refresh Find Job
+        </button>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
