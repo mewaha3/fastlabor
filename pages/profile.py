@@ -4,13 +4,14 @@ import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(page_title="Edit Profile", page_icon="📝", layout="centered")
-st.title("Edit Your Profile")
+# ✅ ตั้งค่า Streamlit
+st.set_page_config(page_title="User Profile", page_icon="👤", layout="centered")
+st.title("👤 My Profile")
 
-# ✅ ตรวจสอบว่าเข้าสู่ระบบหรือไม่
+# ✅ ตรวจสอบการ login
 if "user_email" not in st.session_state or not st.session_state["user_email"]:
-    st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนแก้ไขข้อมูล")
-    st.page_link("app.py", label="⬅️ Go to Login")
+    st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนดูข้อมูล")
+    st.page_link("app.py", label="⬅️ กลับไปหน้า Login", icon="🔙")
     st.stop()
 
 email = st.session_state["user_email"]
@@ -28,54 +29,49 @@ try:
     sheet = client.open("fastlabor").sheet1
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
-
 except Exception as e:
     st.error(f"❌ ไม่สามารถเชื่อมต่อ Google Sheets: {e}")
     st.stop()
 
-# ✅ ดึงข้อมูลของผู้ใช้
+# ✅ ค้นหาข้อมูลผู้ใช้
 user_data = df[df["email"] == email]
 if user_data.empty:
     st.error("❌ ไม่พบข้อมูลผู้ใช้งาน")
     st.stop()
 
-user = user_data.iloc[0]
+user = user_data.iloc[0]  # ดึง row แรกของผู้ใช้
 
-# ✅ แสดงฟอร์มแก้ไข (ไม่รวม password และ email read-only)
-st.markdown("### Personal Information")
-first_name = st.text_input("First name *", user["first_name"])
-last_name = st.text_input("Last name *", user["last_name"])
-national_id = st.text_input("National ID *", user["national_id"], disabled=True)
-dob = st.date_input("Date of Birth *", pd.to_datetime(user["dob"], errors="coerce"))
-gender = st.selectbox("Gender *", ["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(user["gender"]) if user["gender"] in ["Male", "Female", "Other"] else 0)
-nationality = st.text_input("Nationality *", user["nationality"])
+# ✅ แสดงข้อมูลในรูปแบบ Read-Only
+st.markdown("### 🧍 Personal Info")
+st.text_input("First Name", user["first_name"], disabled=True)
+st.text_input("Last Name", user["last_name"], disabled=True)
+st.text_input("National ID", user["national_id"], disabled=True)
+st.text_input("Date of Birth", user["dob"], disabled=True)
+st.text_input("Gender", user["gender"], disabled=True)
+st.text_input("Nationality", user["nationality"], disabled=True)
 
-st.markdown("### Address")
-address = st.text_area("Address *", user["address"])
-province = st.text_input("Province *", user["province"])
-district = st.text_input("District *", user["district"])
-subdistrict = st.text_input("Subdistrict *", user["subdistrict"])
-zip_code = st.text_input("Zip Code", user["zip_code"], disabled=True)
+st.markdown("### 🏡 Address")
+st.text_area("Address", user["address"], disabled=True)
+st.text_input("Province", user["province"], disabled=True)
+st.text_input("District", user["district"], disabled=True)
+st.text_input("Subdistrict", user["subdistrict"], disabled=True)
+st.text_input("Zip Code", user["zip_code"], disabled=True)
 
-st.markdown("### Email")
+st.markdown("### 📧 Account")
 st.text_input("Email", user["email"], disabled=True)
 
-st.markdown("### Documents")
-certificate = st.text_input("Certificate", user.get("certificate", ""))
-passport = st.text_input("Passport", user.get("passport", ""))
-visa = st.text_input("Visa", user.get("visa", ""))
-work_permit = st.text_input("Work Permit", user.get("work_permit", ""))
+st.markdown("### 📄 Documents")
+st.text_input("Certificate", user.get("certificate", ""), disabled=True)
+st.text_input("Passport", user.get("passport", ""), disabled=True)
+st.text_input("Visa", user.get("visa", ""), disabled=True)
+st.text_input("Work Permit", user.get("work_permit", ""), disabled=True)
 
-# ✅ ปุ่มบันทึก
-if st.button("💾 Save Changes"):
-    try:
-        row_index = user_data.index[0] + 2  # +2 เพราะ header เริ่มที่แถว 1
-        sheet.update(f"A{row_index}:Q{row_index}", [[
-            first_name, last_name, national_id, str(dob), gender, nationality,
-            address, province, district, subdistrict, zip_code,
-            email, user["password"], certificate, passport, visa, work_permit
-        ]])
-        st.success("✅ ข้อมูลถูกบันทึกเรียบร้อยแล้ว!")
-
-    except Exception as e:
-        st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+# ✅ ปุ่มย้อนกลับหรือ logout
+col1, col2 = st.columns(2)
+with col1:
+    st.page_link("pages/edit_profile.py", label="✏️ Edit Profile")
+with col2:
+    if st.button("🚪 Logout"):
+        st.session_state["logged_in"] = False
+        st.session_state["user_email"] = None
+        st.experimental_rerun()
