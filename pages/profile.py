@@ -9,9 +9,8 @@ st.set_page_config(page_title="My Full Profile", page_icon="🙍", layout="cente
 st.image("image.png", width=150)
 st.title("👤 My Full Profile")
 
-# ✅ ตรวจสอบ Session
+# ✅ ตรวจสอบ session
 user_email = st.session_state.get("user_email") or st.session_state.get("email")
-
 if not user_email:
     st.warning("⚠️ กรุณาเข้าสู่ระบบก่อนดูข้อมูล")
     st.page_link("app.py", label="⬅️ กลับหน้า Login", icon="⬅️")
@@ -19,7 +18,6 @@ if not user_email:
 
 # ✅ ตั้งค่า Google Sheets API
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
 try:
     if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
         credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
@@ -33,14 +31,10 @@ try:
     headers = [h.strip().lower() for h in values[0]]
 
 except Exception as e:
-    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.error(f"❌ ไม่สามารถเชื่อมต่อ Google Sheets: {e}")
     st.stop()
 
 # ✅ หาตำแหน่งแถวของผู้ใช้
-if "email" not in headers:
-    st.error("❌ ไม่มีคอลัมน์ email ใน Google Sheets")
-    st.stop()
-
 email_col = headers.index("email")
 user_row = next(
     (i + 2 for i, row in enumerate(values[1:]) if len(row) > email_col and row[email_col] == user_email),
@@ -54,20 +48,20 @@ if not user_row:
 user_data = sheet.row_values(user_row)
 profile_data = dict(zip(headers, user_data))
 
-# ✅ แปลงวันเกิดจาก string → datetime.date
-dob_str = profile_data.get("date of birth", "")
+# ✅ แปลงวันเกิดให้เหมาะกับ date_input
+dob_str = profile_data.get("dob", "")
 try:
     dob_default = datetime.strptime(dob_str, "%Y-%m-%d").date() if dob_str else datetime.today().date()
-except Exception:
+except:
     dob_default = datetime.today().date()
 
 # ✅ ฟอร์มแก้ไขข้อมูล
 with st.form("edit_profile"):
     st.markdown("### ✏️ แก้ไขข้อมูลส่วนตัว")
 
-    first_name = st.text_input("First Name", value=profile_data.get("first name", ""))
-    last_name = st.text_input("Last Name", value=profile_data.get("last name", ""))
-    national_id = st.text_input("National ID", value=profile_data.get("national id", ""))
+    first_name = st.text_input("First Name", value=profile_data.get("first_name", ""))
+    last_name = st.text_input("Last Name", value=profile_data.get("last_name", ""))
+    national_id = st.text_input("National ID", value=profile_data.get("national_id", ""))
     dob = st.date_input("Date of Birth", value=dob_default)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"],
                           index=["Male", "Female", "Other"].index(profile_data.get("gender", "Male")))
@@ -76,12 +70,19 @@ with st.form("edit_profile"):
     province = st.text_input("Province", value=profile_data.get("province", ""))
     district = st.text_input("District", value=profile_data.get("district", ""))
     subdistrict = st.text_input("Subdistrict", value=profile_data.get("subdistrict", ""))
-    zip_code = st.text_input("Zip Code", value=profile_data.get("zip code", ""))
+    zip_code = st.text_input("Zip Code", value=profile_data.get("zip_code", ""))
     email = st.text_input("Email (ไม่สามารถแก้ไขได้)", value=user_email, disabled=True)
+
+    # ✅ เอกสารจากหน้า upload.py
+    st.markdown("### 📎 เอกสารที่อัปโหลดแล้ว")
+    st.text_input("📄 Certificate", value=profile_data.get("certificate", ""), disabled=True)
+    st.text_input("📄 Passport", value=profile_data.get("passport", ""), disabled=True)
+    st.text_input("📄 Visa", value=profile_data.get("visa", ""), disabled=True)
+    st.text_input("📄 Work Permit", value=profile_data.get("work_permit", ""), disabled=True)
 
     submitted = st.form_submit_button("💾 Save")
 
-# ✅ บันทึกข้อมูลกลับเข้า Google Sheets
+# ✅ บันทึกข้อมูลเมื่อกด Save
 if submitted:
     try:
         update_values = [
@@ -89,6 +90,7 @@ if submitted:
             address, province, district, subdistrict, zip_code, user_email
         ]
 
+        # ✅ อัปเดตเฉพาะคอลัมน์ 1-12 (ไม่ยุ่งกับ password/เอกสาร)
         for i, val in enumerate(update_values):
             sheet.update_cell(user_row, i + 1, val)
 
