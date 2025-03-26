@@ -69,7 +69,7 @@ st.write("👤 Employee No.1")
 st.write("👤 Employee No.2")
 st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
 # ✅ เมื่อกดปุ่ม Job Done → redirect ไป review_employee.py
-if st.button("Job Done"):
+if st.button("Job Done นายจ้าง"):
     st.success("✅ Job details saved successfully!")
 
     # Redirect โดยใช้ HTML (ไม่ต้องใช้ streamlit-extras)
