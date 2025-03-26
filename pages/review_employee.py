@@ -15,26 +15,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.markdown("## Review Employee")
-st.markdown("")
+st.markdown("## ⭐ Review Employee")
 
-# Review Card UI
-with st.container():
-    st.markdown("""
-    <div style="display: flex; justify-content: center;">
-      <div style="border: 1px solid #ddd; border-radius: 12px; padding: 20px; width: 300px; text-align: center;">
-        <div style="font-size: 22px; color: #ffcc00;">
-            ⭐⭐⭐☆☆
-        </div>
-        <h4 style="margin-top: 10px;">Review title</h4>
-        <p style="color: #555;">Review body</p>
-        <div style="display: flex; align-items: center; justify-content: center; margin-top: 15px;">
-            <img src="https://randomuser.me/api/portraits/women/44.jpg" width="30" style="border-radius: 50%; margin-right: 10px;" />
-            <div style="text-align: left;">
-                <div style="font-weight: bold;">Reviewer name</div>
-                <div style="font-size: 12px; color: gray;">Client</div>
+# Form input
+st.markdown("### ให้คะแนนและแสดงความคิดเห็น")
+
+rating = st.slider("ให้คะแนน", min_value=1, max_value=5, value=3)
+comment = st.text_area("ความคิดเห็นเพิ่มเติม", placeholder="แสดงความคิดเห็นเกี่ยวกับพนักงานที่ทำงานให้คุณ")
+
+# ปุ่ม Submit
+if st.button("Submit Review"):
+    st.success("✅ ขอบคุณสำหรับการรีวิว!")
+    
+    # แสดงผลลัพธ์ที่ผู้ใช้กรอก
+    stars_display = "⭐" * rating + "☆" * (5 - rating)
+    st.markdown("---")
+    with st.container():
+        st.markdown(f"""
+        <div style="display: flex; justify-content: center;">
+          <div style="border: 1px solid #ddd; border-radius: 12px; padding: 20px; width: 300px; text-align: center;">
+            <div style="font-size: 22px; color: #ffcc00;">{stars_display}</div>
+            <h4 style="margin-top: 10px;">Review</h4>
+            <p style="color: #555;">{comment if comment else 'ไม่มีความคิดเห็นเพิ่มเติม'}</p>
+            <div style="display: flex; align-items: center; justify-content: center; margin-top: 15px;">
+                <img src="https://randomuser.me/api/portraits/women/44.jpg" width="30" style="border-radius: 50%; margin-right: 10px;" />
+                <div style="text-align: left;">
+                    <div style="font-weight: bold;">คุณลูกค้า</div>
+                    <div style="font-size: 12px; color: gray;">Client</div>
+                </div>
             </div>
+          </div>
         </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
