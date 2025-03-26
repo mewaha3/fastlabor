@@ -45,7 +45,7 @@ def get_status_color(status):
 
 # UI for each employee
 st.markdown("---")
-for emp in employees:
+for i, emp in enumerate(employees):
     with st.container():
         st.markdown(f"**{emp['name']}**")
         st.write(f"เพศ: {emp['gender']}")
@@ -59,5 +59,9 @@ for emp in employees:
             f"{status_text}</span>",
             unsafe_allow_html=True
         )
-        st.markdown("----")
 
+        # ✅ แสดงปุ่มเฉพาะถ้า status = Accepted
+        if emp["status"].lower() == "accepted":
+            st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
+
+        st.markdown("----")
