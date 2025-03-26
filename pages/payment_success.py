@@ -1,6 +1,8 @@
 import streamlit as st
+from streamlit_extras.switch_page_button import switch_page
 
 # ตั้งชื่อหัวหน้า
+st.set_page_config(page_title="Payment Success", page_icon="✅")
 st.markdown("### FAST LABOR")
 
 # เว้นระยะห่าง
@@ -18,18 +20,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# เว้นระยะห่าง
+# ปุ่ม "สรุปผลการจ้างงาน" อยู่ตรงกลาง
 st.markdown("")
 
-# ปุ่ม "สรุปผลการจ้างงาน"
-center_button = """
-<div style='display: flex; justify-content: center; margin-top: 20px;'>
-    <form action='/summary'>
-        <button style='background-color: black; color: white; padding: 8px 20px; border: none; border-radius: 5px;'>
-            สรุปผลการจ้างงาน
-        </button>
-    </form>
-</div>
-"""
-
-st.markdown(center_button, unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("สรุปผลการจ้างงาน"):
+        switch_page("job_detail")
