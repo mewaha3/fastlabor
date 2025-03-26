@@ -1,15 +1,11 @@
 import streamlit as st
 
-# ✅ สำหรับเปลี่ยนหน้า
-from streamlit_extras.switch_page_button import switch_page
-
 # ตั้งชื่อหัวข้อด้านบน
+st.set_page_config(page_title="Payment", layout="centered")
 st.markdown("### FAST LABOR")
 
 # เว้นระยะห่างเล็กน้อย
 st.markdown("## ")
-
-# กล่อง Payment
 st.markdown("## Payment")
 
 # ตัวเลือกการชำระเงิน
@@ -22,15 +18,17 @@ payment_method = st.radio(
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    cancel = st.button("Cancel", type="secondary")
+    cancel = st.button("Cancel")
 with col2:
     confirm = st.button("Confirm")
 
 # ถ้ากด Confirm
 if confirm:
     st.session_state["selected_payment_method"] = payment_method
-    switch_page("payment_success")
+    st.success(f"✅ You selected: {payment_method}")
+    st.markdown("คลิกเพื่อดำเนินการต่อไปยังหน้า Payment Success 👇")
+    st.page_link("pages/payment_success.py", label="➡️ ไปยัง Payment Success", icon="💳")
 
 # ถ้ากด Cancel
 if cancel:
-    st.warning("Payment cancelled.")
+    st.warning("❌ Payment cancelled.")
