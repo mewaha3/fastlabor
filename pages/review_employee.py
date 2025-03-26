@@ -47,3 +47,5 @@ if st.button("Submit Review"):
           </div>
         </div>
         """, unsafe_allow_html=True)
+st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
+
