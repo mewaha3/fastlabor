@@ -70,7 +70,7 @@ with profile_container:
 # ✅ กล่องสำหรับปุ่มหลัก
 st.markdown('<div class="content">', unsafe_allow_html=True)
 st.markdown('<h1 style="margin-bottom: 15px;">Please Select Activity</h1>', unsafe_allow_html=True)
-
+st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
 # ✅ ปุ่ม Post Job & Find Job
 buttons_container = st.container()
 with buttons_container:
@@ -99,4 +99,4 @@ cols = st.columns(len(social_links))
 for col, (name, link) in zip(cols, social_links.items()):
     with col:
         st.markdown(f"[{name}]({link})", unsafe_allow_html=True)
-st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
+
