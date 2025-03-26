@@ -73,7 +73,6 @@ st.page_link("pages/profile.py", label="Profile", icon="👤")
 
 st.title("Post Job")
 st.write("For generating a list of employees who match the job.")
-
 st.image("image.png", width=400)
 
 # ✅ ฟอร์มสำหรับเพิ่มงานใหม่
@@ -81,16 +80,20 @@ with st.form("job_form"):
     job_type = st.text_input("Job Type *", placeholder="Enter job type")
     job_detail = st.text_area("Job Detail *", placeholder="Enter job details")
     salary = st.text_input("Salary *", placeholder="Enter salary range")
-    job_date = st.date_input("Date of Schedule *")
 
-    # ✅ เปลี่ยนเป็นตัวเลือกเวลา
+    # ✅ เปลี่ยนเป็น Start Date และ End Date
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("Start Date *")
+    with col2:
+        end_date = st.date_input("End Date *")
+
     start_time = st.time_input("Start Time *")
     end_time = st.time_input("End Time *")
 
     st.markdown("#### Address Information")
     job_address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Enter your address")
 
-    # ✅ เลือกจังหวัด > อำเภอ > ตำบล (อัปเดตอัตโนมัติ)
     province_names = ["Select Province"] + provinces["name_th"].tolist()
     selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province) if st.session_state.selected_province in province_names else 0)
 
@@ -101,7 +104,6 @@ with st.form("job_form"):
         st.session_state.zip_code = ""
         st.experimental_rerun()
 
-    # ✅ กรองอำเภอจากจังหวัด
     filtered_districts = ["Select District"]
     if selected_province != "Select Province":
         province_id = provinces.loc[provinces["name_th"] == selected_province, "id"].values
@@ -117,7 +119,6 @@ with st.form("job_form"):
         st.session_state.zip_code = ""
         st.experimental_rerun()
 
-    # ✅ กรองตำบลจากอำเภอ
     filtered_subdistricts = ["Select Subdistrict"]
     zip_codes = {}
     if selected_district != "Select District":
@@ -143,8 +144,9 @@ with st.form("job_form"):
 if submit_button:
     try:
         email = st.session_state["email"]
+        job_date = f"{start_date} to {end_date}"
         sheet.append_row([
-            email, job_type, job_detail, salary, str(job_date), str(start_time), str(end_time),
+            email, job_type, job_detail, salary, job_date, str(start_time), str(end_time),
             job_address, selected_province, selected_district, selected_subdistrict, st.session_state.zip_code
         ])
         st.success("✅ Job posted successfully!")
