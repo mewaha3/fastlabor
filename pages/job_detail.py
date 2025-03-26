@@ -83,7 +83,7 @@ with col_done2:
     if st.button("🧑‍🔧 Job Done ลูกจ้าง"):
         st.success("🎉 Job details saved by employee!")
         st.markdown("""
-            <meta http-equiv="refresh" content="0; url=./review_employer" />
+            <meta http-equiv="refresh" content="0; url=./waiting_payment" />
         """, unsafe_allow_html=True)
 
 # ปุ่มกลับหน้าแรก
