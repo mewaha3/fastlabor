@@ -67,7 +67,7 @@ with col12:
 st.markdown("#### Employee")
 st.write("👤 Employee No.1")
 st.write("👤 Employee No.2")
-
+st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
 # ✅ เมื่อกดปุ่ม Job Done → redirect ไป review_employee.py
 if st.button("Job Done"):
     st.success("✅ Job details saved successfully!")
@@ -76,5 +76,5 @@ if st.button("Job Done"):
     st.markdown("""
         <meta http-equiv="refresh" content="0; url=./review_employee" />
     """, unsafe_allow_html=True)
-st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
+
 st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
