@@ -17,8 +17,6 @@ st.markdown("""
 
 # Title
 st.markdown("## Job Detail")
-
-# Image
 st.image("https://i.ibb.co/kq4bnfK/handshake.png", width=200)
 
 # Job status dropdown
@@ -67,14 +65,26 @@ with col12:
 st.markdown("#### Employee")
 st.write("👤 Employee No.1")
 st.write("👤 Employee No.2")
+
+# ปุ่มชำระเงิน
 st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
-# ✅ เมื่อกดปุ่ม Job Done → redirect ไป review_employee.py
-if st.button("Job Done นายจ้าง"):
-    st.success("✅ Job details saved successfully!")
 
-    # Redirect โดยใช้ HTML (ไม่ต้องใช้ streamlit-extras)
-    st.markdown("""
-        <meta http-equiv="refresh" content="0; url=./review_employee" />
-    """, unsafe_allow_html=True)
+# ✅ ปุ่ม Job Done (นายจ้าง และ ลูกจ้าง)
+col_done1, col_done2 = st.columns(2)
 
+with col_done1:
+    if st.button("✅ Job Done นายจ้าง"):
+        st.success("✅ Job details saved by employer!")
+        st.markdown("""
+            <meta http-equiv="refresh" content="0; url=./review_employee" />
+        """, unsafe_allow_html=True)
+
+with col_done2:
+    if st.button("🧑‍🔧 Job Done ลูกจ้าง"):
+        st.success("🎉 Job details saved by employee!")
+        st.markdown("""
+            <meta http-equiv="refresh" content="0; url=./review_employer" />
+        """, unsafe_allow_html=True)
+
+# ปุ่มกลับหน้าแรก
 st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
