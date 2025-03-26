@@ -70,7 +70,7 @@ with profile_container:
 # ✅ กล่องสำหรับปุ่มหลัก
 st.markdown('<div class="content">', unsafe_allow_html=True)
 st.markdown('<h1 style="margin-bottom: 15px;">Please Select Activity</h1>', unsafe_allow_html=True)
-st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
+
 # ✅ ปุ่ม Post Job & Find Job
 buttons_container = st.container()
 with buttons_container:
@@ -81,7 +81,7 @@ with buttons_container:
     with col2:
         if st.button("🔎 Find Job"):
             st.switch_page("pages/find_job.py")
-
+st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
 st.markdown("</div>", unsafe_allow_html=True)  # ปิด .content
 
 # ✅ ส่วนท้าย (FAST LABOR + Social Media)
