@@ -76,3 +76,4 @@ if st.button("Job Done"):
     st.markdown("""
         <meta http-equiv="refresh" content="0; url=./review_employee" />
     """, unsafe_allow_html=True)
+st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
