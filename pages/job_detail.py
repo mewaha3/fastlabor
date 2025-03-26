@@ -18,7 +18,7 @@ st.markdown("""
 # Title
 st.markdown("## Job Detail")
 
-# Image (จับมือ / สำเร็จ)
+# Image
 st.image("https://i.ibb.co/kq4bnfK/handshake.png", width=200)
 
 # Job status dropdown
@@ -45,7 +45,6 @@ with col6:
 
 job_address = st.text_area("Job Address (House No, Road, District)", placeholder="Enter job location or message")
 
-# Dropdowns for preferences
 col7, col8 = st.columns(2)
 with col7:
     province = st.selectbox("Province", ["Bangkok", "Chiang Mai", "Khon Kaen"])
@@ -69,6 +68,11 @@ st.markdown("#### Employee")
 st.write("👤 Employee No.1")
 st.write("👤 Employee No.2")
 
-# Job Done Button
+# ✅ เมื่อกดปุ่ม Job Done → redirect ไป review_employee.py
 if st.button("Job Done"):
     st.success("✅ Job details saved successfully!")
+
+    # Redirect โดยใช้ HTML (ไม่ต้องใช้ streamlit-extras)
+    st.markdown("""
+        <meta http-equiv="refresh" content="0; url=./review_employee" />
+    """, unsafe_allow_html=True)
