@@ -99,3 +99,4 @@ cols = st.columns(len(social_links))
 for col, (name, link) in zip(cols, social_links.items()):
     with col:
         st.markdown(f"[{name}]({link})", unsafe_allow_html=True)
+st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
