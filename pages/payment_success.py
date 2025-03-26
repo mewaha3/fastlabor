@@ -1,29 +1,37 @@
 import streamlit as st
-from streamlit_extras.switch_page_button import switch_page
 
-# ตั้งชื่อหัวหน้า
-st.set_page_config(page_title="Payment Success", page_icon="✅")
+st.set_page_config(page_title="Payment", layout="centered")
+
 st.markdown("### FAST LABOR")
-
-# เว้นระยะห่าง
 st.markdown("## ")
-st.markdown("## Payment Success", unsafe_allow_html=True)
+st.markdown("## Payment")
 
-# แสดงไอคอนผู้ใช้และเครื่องหมายถูก
-st.markdown(
-    """
-    <div style='text-align: center; font-size: 50px;'>
-        <span style='display: inline-block;'>👤</span>
-        <span style='display: inline-block; margin-left: 20px;'>✅</span>
-    </div>
-    """,
-    unsafe_allow_html=True
+# ตัวเลือกการชำระเงิน
+payment_method = st.radio(
+    "",
+    ("Mobile Banking", "Credit card", "QR Code")
 )
 
-# ปุ่ม "สรุปผลการจ้างงาน" อยู่ตรงกลาง
-st.markdown("")
-
-col1, col2, col3 = st.columns([1, 2, 1])
+# ปุ่ม
+col1, col2 = st.columns([1, 1])
+with col1:
+    cancel = st.button("Cancel")
 with col2:
-    if st.button("สรุปผลการจ้างงาน"):
-        switch_page("job_detail")
+    confirm = st.button("Confirm")
+
+# ✅ ถ้ากด Confirm แล้ว redirect ไป payment_success.py
+if confirm:
+    st.session_state["selected_payment_method"] = payment_method
+
+    # แสดงข้อความก่อน redirect
+    st.success(f"✅ คุณเลือกวิธีชำระเงิน: {payment_method}")
+    st.markdown("กำลังดำเนินการ... กรุณารอสักครู่")
+
+    # ✅ ใช้ HTML redirect แบบอัตโนมัติ
+    st.markdown("""
+        <meta http-equiv="refresh" content="0; url=./payment_success" />
+    """, unsafe_allow_html=True)
+
+# ✅ ถ้ากด Cancel
+if cancel:
+    st.warning("❌ ยกเลิกการชำระเงิน")
