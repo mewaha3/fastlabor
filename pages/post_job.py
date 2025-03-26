@@ -155,3 +155,4 @@ if submit_button:
 
 # ✅ ปุ่มกลับหน้า Home
 st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
+st.page_link("pages/list_job.py", label="List Job", icon="🏠")
