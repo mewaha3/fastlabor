@@ -52,3 +52,4 @@ try:
 
 except Exception as e:
     st.error(f"❌ ไม่สามารถโหลดข้อมูลจาก Google Sheets: {e}")
+st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
