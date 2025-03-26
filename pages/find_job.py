@@ -138,6 +138,7 @@ with st.form("find_job_form"):
     start_salary = st.number_input("Start Salary*", min_value=0, step=100, value=3000)
     range_salary = st.number_input("Range Salary*", min_value=0, step=100, value=6000)
 
+    # ✅ ปุ่ม Submit อยู่ "ใน" form แล้ว
     submit_button = st.form_submit_button("Find Job")
 
 # ✅ บันทึกลง Google Sheets
@@ -154,6 +155,6 @@ if submit_button:
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ✅ กลับหน้า Home
+# ✅ กลับหน้า Home และดูรายการงาน
 st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
 st.page_link("pages/list_job.py", label="List Job", icon="📄")
