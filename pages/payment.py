@@ -1,5 +1,8 @@
 import streamlit as st
 
+# ✅ สำหรับเปลี่ยนหน้า
+from streamlit_extras.switch_page_button import switch_page
+
 # ตั้งชื่อหัวข้อด้านบน
 st.markdown("### FAST LABOR")
 
@@ -25,7 +28,8 @@ with col2:
 
 # ถ้ากด Confirm
 if confirm:
-    st.success(f"You selected: {payment_method}")
+    st.session_state["selected_payment_method"] = payment_method
+    switch_page("payment_success")
 
 # ถ้ากด Cancel
 if cancel:
