@@ -62,6 +62,6 @@ for i, emp in enumerate(employees):
 
         # ✅ แสดงปุ่มเฉพาะถ้า status = Accepted
         if emp["status"].lower() == "accepted":
-            st.page_link("pages/payment.py", label="💳 ชำระเงิน", icon="💰")
+            st.page_link("pages/job_detail.py", label="💳 Job Detail")
 
         st.markdown("----")
