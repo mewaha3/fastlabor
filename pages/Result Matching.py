@@ -33,7 +33,7 @@ st.markdown("## Result matching")
 st.markdown("List of employee who was matching with job")
 
 # Image (ใช้ภาพประกอบผลลัพธ์การอนุมัติ)
-st.image("https://i.ibb.co/7NFFZBK/passport-image.png", use_column_width=True)
+st.image("image.png", width=150)
 
 # ข้อมูลพนักงานจำลอง
 employees = [
