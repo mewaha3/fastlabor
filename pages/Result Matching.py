@@ -66,3 +66,4 @@ if st.button("Confirm"):
     st.success("Your matching priorities have been saved!")
     st.write("### Updated Priorities")
     st.write(updated_priorities)
+    st.switch_page("pages/status_matching.py")
