@@ -19,7 +19,7 @@ st.markdown("## Status matching")
 st.markdown("List of employee who was matching with job")
 
 # Image
-st.image("https://i.ibb.co/7NFFZBK/passport-image.png", use_column_width=True)
+st.image("image.png", width=150)
 
 # Sample data
 employees = [
