@@ -19,7 +19,7 @@ st.markdown("## Find Job")
 st.markdown("For generate list of employee who was matching with job")
 
 # Image
-st.image("https://i.ibb.co/pX7FfWB/findjob.png", use_column_width=True)
+st.image("image.png", width=150)
 
 # Sample job list
 jobs = [
