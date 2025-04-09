@@ -17,7 +17,7 @@ st.markdown("""
 
 # Title
 st.markdown("## Job Detail")
-st.image("https://i.ibb.co/kq4bnfK/handshake.png", width=200)
+st.image("image.png", width=150)
 
 # Job status dropdown
 job_status = st.selectbox("Job Status", ["In-Progress", "Job Done"])
