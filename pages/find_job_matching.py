@@ -72,7 +72,9 @@ for i, job in enumerate(jobs):
         with col2:
             if st.button("Accept", key=f"accept_{i}"):
                 jobs[i]["status"] = "Accepted"
-        
+                st.session_state["selected_job"] = job  # 👉 ส่งข้อมูลงานไปหน้าใหม่
+                st.switch_page("pages/job_detail.py")  # 👉 ไปหน้า job_detail.py
+
         if job["status"] == "Accepted":
             st.success("✅ Accepted")
         elif job["status"] == "Decline":
