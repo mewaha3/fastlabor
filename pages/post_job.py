@@ -79,7 +79,7 @@ st.image("image.png", width=400)
 with st.form("job_form"):
     job_type = st.text_input("Job Type *", placeholder="Enter job type")
     job_detail = st.text_area("Job Detail *", placeholder="Enter job details")
-    salary = st.text_input("Salary *", placeholder="Enter salary range")
+    salary = st.text_input("Wages *", placeholder="Enter salary range")
 
     # ✅ เปลี่ยนเป็น Start Date และ End Date
     col1, col2 = st.columns(2)
