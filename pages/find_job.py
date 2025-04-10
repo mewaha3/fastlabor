@@ -135,8 +135,8 @@ with st.form("find_job_form"):
 
     zip_code = st.text_input("Zip Code *", st.session_state.zip_code, disabled=True)
 
-    start_salary = st.number_input("Start Salary*", min_value=0, step=100, value=3000)
-    range_salary = st.number_input("Range Salary*", min_value=0, step=100, value=6000)
+    start_salary = st.number_input("Start Wages*", min_value=0, step=100, value=3000)
+    range_salary = st.number_input("Range Wages*", min_value=0, step=100, value=6000)
 
     # ✅ ปุ่ม Submit อยู่ "ใน" form แล้ว
     submit_button = st.form_submit_button("Find Job")
