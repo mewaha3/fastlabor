@@ -37,11 +37,32 @@ st.image("image.png", width=150)
 
 # ข้อมูลพนักงานจำลอง
 employees = [
-    {"name": "Employee No.1", "gender": "ชาย", "skill": "Weld", "priority": 1},
-    {"name": "Employee No.2", "gender": "หญิง", "skill": "Paint", "priority": 3},
-    {"name": "Employee No.3", "gender": "ชาย", "skill": "Weld", "priority": 4},
-    {"name": "Employee No.4", "gender": "หญิง", "skill": "Sew", "priority": 5},
-    {"name": "Employee No.5", "gender": "หญิง", "skill": "Solid", "priority": 2},
+    {"name": "Employee No.1", "gender": "ชาย",
+        "skill": "ขับรถส่งของ",
+        "priority": 1,
+        "area": "กรุงเทพฯ"
+    },
+    {"name": "Employee No.2", "gender": "ชาย",
+        "skill": "ขับรถตู้",
+        "priority": 2,
+        "area": "นนทบุรี"
+    },
+    {"name": "Employee No.3", "gender": "ชาย",
+        "skill": "ขับรถผู้บริหาร",
+        "priority": 3,
+        "area": "สาทร, กรุงเทพฯ"
+    },
+    {"name": "Employee No.4", "gender": "หญิง",
+        "skill": "ขับมอเตอร์ไซค์ส่งของ",
+        "priority": 4,
+        "area": "ลาดพร้าว, กรุงเทพฯ"
+    }
+    {"name": "Employee No.5", "gender": "ชาย",
+        "skill": "ขับรถผู้บริหาร",
+        "priority": 2,
+        "area": "สาทร, กรุงเทพฯ"
+    },
+
 ]
 
 st.markdown("---")
