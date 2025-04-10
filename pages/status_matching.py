@@ -23,11 +23,31 @@ st.image("image.png", width=150)
 
 # Sample data
 employees = [
-    {"name": "Employee No.1", "gender": "ชาย", "skill": "Weld", "priority": 1, "status": "Decline"},
-    {"name": "Employee No.2", "gender": "หญิง", "skill": "Paint", "priority": 3, "status": "Accepted"},
-    {"name": "Employee No.3", "gender": "ชาย", "skill": "Weld", "priority": 4, "status": "On Queue"},
-    {"name": "Employee No.4", "gender": "หญิง", "skill": "Sew", "priority": 5, "status": ""},
-    {"name": "Employee No.5", "gender": "หญิง", "skill": "Solid", "priority": 2, "status": "Decline"},
+    {"name": "Employee No.1", "gender": "ชาย",
+        "skill": "ขับรถส่งของ",
+        "priority": 1,
+        "area": "กรุงเทพฯ",
+     "status": "Decline"},
+    {"name": "Employee No.2", "gender": "ชาย",
+        "skill": "ขับรถตู้",
+        "priority": 2,
+        "area": "นนทบุรี",
+     "status": "Accepted"},
+    {"name": "Employee No.3", "gender": "ชาย",
+        "skill": "ขับรถผู้บริหาร",
+        "priority": 3,
+        "area": "สาทร, กรุงเทพฯ",
+     "status": "On Queue"},
+    {"name": "Employee No.4", "gender": "หญิง",
+        "skill": "ขับมอเตอร์ไซค์ส่งของ",
+        "priority": 4,
+        "area": "ลาดพร้าว, กรุงเทพฯ",
+     "status": ""},
+    {"name": "Employee No.5", "gender": "ชาย",
+        "skill": "ขับรถผู้บริหาร",
+        "priority": 2,
+        "area": "สาทร, กรุงเทพฯ",
+     "status": "Decline"},
 ]
 
 # Status color helper
