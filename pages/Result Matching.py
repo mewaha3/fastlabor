@@ -56,7 +56,7 @@ employees = [
         "skill": "ขับมอเตอร์ไซค์ส่งของ",
         "priority": 4,
         "area": "ลาดพร้าว, กรุงเทพฯ"
-    }
+    },
     {"name": "Employee No.5", "gender": "ชาย",
         "skill": "ขับรถผู้บริหาร",
         "priority": 2,
