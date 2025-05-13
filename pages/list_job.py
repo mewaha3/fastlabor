@@ -105,8 +105,7 @@ with tab2:
 - **Range Salary**: {max_sal}
 """)
 
-            # Link to Result Matching with seeker_idx
-            params = urlencode({"page": "result_matching", "seeker_idx": idx})
+
             st.markdown(f"[🔍 View Matching →](/?{params})", unsafe_allow_html=True)
 
 # --- 5. Back to Home ---
