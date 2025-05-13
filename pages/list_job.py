@@ -6,17 +6,10 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1. ต้องเรียก set_page_config เป็นคำสั่งแรกสุด
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
-
-# 2. Auth guard (สมมติคุณเซ็ต st.session_state["logged_in"] ใน login.py)
-if not st.session_state.get("logged_in", False):
-    st.experimental_set_query_params(page="login")
-    st.stop()
-
 st.title("📄 My Jobs")
 
-# 3. เชื่อม Google Sheets
+# --- 1. Authenticate & connect to Google Sheets ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -27,24 +20,26 @@ else:
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# 4. Loader helper
+# --- 2. Robust loader using get_all_values() ---
 def load_df(sheet_name: str) -> pd.DataFrame:
     ws   = sh.worksheet(sheet_name)
     vals = ws.get_all_values()
-    df   = pd.DataFrame(vals[1:], columns=vals[0])
+    header = vals[0]
+    data   = vals[1:]
+    df     = pd.DataFrame(data, columns=header)
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
 
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# 5. Clean salary columns
+# --- 3. Clean up salary columns ---
 for df in (df_post, df_find):
     for col in ("start_salary", "range_salary"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace({"": None})
 
-# 6. Tabs for Post Job / Find Job
+# --- 4. Tabs: Post Job / Find Job ---
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -56,18 +51,25 @@ with tab1:
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
 
-            # Extract fields
-            email   = row["email"]
-            jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail", "–"))
-            date    = row["job_date"]
-            start   = row["start_time"]
-            end     = row["end_time"]
-            addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            min_sal = row.get("start_salary") or row.get("salary", "–")
-            max_sal = row.get("range_salary") or row.get("salary", "–")
+            email = row["email"]
+            jtype = row["job_type"]
+            detail = row.get("skills", row.get("job_detail", "-"))
 
-            # Render Markdown
+            # แยก Date กับ Time
+            date  = row["job_date"]
+            start = row["start_time"]
+            end   = row["end_time"]
+
+            addr = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
+
+            # Salary display
+            min_sal = row.get("start_salary")
+            max_sal = row.get("range_salary")
+            if min_sal or max_sal:
+                salary = f"{min_sal or '-'} – {max_sal or '-'}"
+            else:
+                salary = row.get("salary", "-")
+
             st.markdown(f"""
 - **Email**: {email}
 - **Job Type**: {jtype}
@@ -75,15 +77,11 @@ with tab1:
 - **Date**: {date}
 - **Time**: {start} – {end}
 - **Location**: {addr}
-- **Salary**: {min_sal} – {max_sal}
+- **Salary**: {salary}
 """)
-
-            # ← ตรงนี้สำคัญ ต้องเรียกเป็น keyword args ทั้งหมด
-            st.page_link(
-                label="🔍 View Matching",
-                page="result_matching",
-                params={"job_idx": idx}
-            )
+            if st.button("View Matching", key=f"view_post_{idx}"):
+                st.experimental_set_query_params(page="result_matching", job_idx=idx)
+                st.experimental_rerun()
 
 with tab2:
     st.subheader("🔍 รายการค้นหางาน")
@@ -94,14 +92,19 @@ with tab2:
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
 
-            email   = row["email"]
-            skill   = row.get("skills", row.get("job_detail", "–"))
-            date    = row["job_date"]
-            start   = row["start_time"]
-            end     = row["end_time"]
-            addr    = f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            min_sal = row.get("start_salary") or "–"
-            max_sal = row.get("range_salary") or "–"
+            email = row["email"]
+            skill = row.get("skills", row.get("job_detail", "-"))
+
+            # แยก Date กับ Time
+            date  = row["job_date"]
+            start = row["start_time"]
+            end   = row["end_time"]
+
+            addr = f"{row['province']}/{row['district']}/{row['subdistrict']}"
+
+            # Salary
+            min_sal = row.get("start_salary")
+            max_sal = row.get("range_salary")
 
             st.markdown(f"""
 - **Email**: {email}
@@ -109,15 +112,13 @@ with tab2:
 - **Date**: {date}
 - **Time**: {start} – {end}
 - **Location**: {addr}
-- **Start Salary**: {min_sal}
-- **Range Salary**: {max_sal}
+- **Start Salary**: {min_sal or '-'}
+- **Range Salary**: {max_sal or '-'}
 """)
-            st.page_link(
-                label="🔍 View Matching",
-                page="result_matching",
-                params={"seeker_idx": idx}
-            )
+            if st.button("View Matching", key=f"view_find_{idx}"):
+                st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
+                st.experimental_rerun()
 
-# 7. Back to Homepage
+# --- 5. Back to Home ---
 st.markdown("---")
-st.page_link(label="🏠 Go to Homepage", page="home")
+st.page_link("pages/home.py", label="🏠 Go to Homepage")
