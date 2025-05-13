@@ -1,3 +1,5 @@
+# pages/list_job.py
+
 import streamlit as st
 import pandas as pd
 import gspread
@@ -16,17 +18,14 @@ if "gcp" in st.secrets:
 else:
     creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 client = gspread.authorize(creds)
-sh     = client.open("fastlabor")
+sheet  = client.open("fastlabor")
 
-# --- Robust loader using get_all_values() ---
-def load_df(sheet_name: str) -> pd.DataFrame:
+# --- Robust loader ---
+def load_df(name: str) -> pd.DataFrame:
     try:
-        ws   = sh.worksheet(sheet_name)
+        ws   = sheet.worksheet(name)
         vals = ws.get_all_values()
-        header = vals[0]
-        data   = vals[1:]
-        df     = pd.DataFrame(data, columns=header)
-        # normalize column names
+        df   = pd.DataFrame(vals[1:], columns=vals[0])
         df.columns = (
             df.columns
               .str.strip()
@@ -35,13 +34,13 @@ def load_df(sheet_name: str) -> pd.DataFrame:
         )
         return df
     except Exception as e:
-        st.warning(f"⚠️ ไม่พบชีท `{sheet_name}`: {e}")
+        st.warning(f"⚠️ ไม่พบชีท `{name}`: {e}")
         return pd.DataFrame()
 
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- Tabs: Post Job / Find Job ---
+# --- Tabs ---
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -52,11 +51,9 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-            # สร้างข้อความแบบ bullet list
             sal_min = row.get("start_salary") or "–"
             sal_max = row.get("range_salary") or "–"
-            salary  = f"{sal_min} – {sal_max}" if (sal_min != "–" or sal_max != "–") else "–"
-
+            salary  = f"{sal_min} – {sal_max}" if (sal_min!="–" or sal_max!="–") else "–"
             st.markdown(f"""
 - **Email**: {row.get("email","–")}
 - **Job Type**: {row.get("job_type","–")}
@@ -65,7 +62,7 @@ with tab1:
 - **Location**: {row.get("province","–")}/{row.get("district","–")}/{row.get("subdistrict","–")}
 - **Salary**: {salary}
 """)
-            if st.button("View Matching", key=f"view_{idx}"):
+            if st.button("View Matching", key=f"view_post_{idx}"):
                 st.experimental_set_query_params(page="result_matching", job_idx=idx)
                 st.experimental_rerun()
 
@@ -84,6 +81,11 @@ with tab2:
 - **Location**: {row.get("province","–")}/{row.get("district","–")}/{row.get("subdistrict","–")}
 - **Expected Wage**: {row.get("salary","–")}
 """)
+            # ปุ่ม View Matching ใน Find Job
+            if st.button("View Matching", key=f"view_find_{idx}"):
+                st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
+                st.experimental_rerun()
 
+# --- Back to home ---
 st.markdown("---")
 st.page_link("pages/home.py", label="🏠 Go to Homepage")
