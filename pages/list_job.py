@@ -33,7 +33,7 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- 3. Normalize salary columns so blanks become None ---
+# --- 3. Clean up salary columns ---
 for df in (df_post, df_find):
     for col in ("start_salary", "range_salary"):
         if col in df.columns:
@@ -50,15 +50,19 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-            email   = row["email"]
-            jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail", "-"))
-            date    = row["job_date"]
-            start   = row["start_time"]
-            end     = row["end_time"]
-            addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
 
-            # Salary
+            email = row["email"]
+            jtype = row["job_type"]
+            detail = row.get("skills", row.get("job_detail", "-"))
+
+            # แยก Date กับ Time
+            date  = row["job_date"]
+            start = row["start_time"]
+            end   = row["end_time"]
+
+            addr = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
+
+            # Salary display
             min_sal = row.get("start_salary")
             max_sal = row.get("range_salary")
             if min_sal or max_sal:
@@ -70,7 +74,8 @@ with tab1:
 - **Email**: {email}
 - **Job Type**: {jtype}
 - **Detail**: {detail}
-- **Date & Time**: {date} {start}–{end}
+- **Date**: {date}
+- **Time**: {start} – {end}
 - **Location**: {addr}
 - **Salary**: {salary}
 """)
@@ -86,24 +91,26 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
+
             email = row["email"]
             skill = row.get("skills", row.get("job_detail", "-"))
+
+            # แยก Date กับ Time
             date  = row["job_date"]
             start = row["start_time"]
             end   = row["end_time"]
-            addr  = f"{row['province']}/{row['district']}/{row['subdistrict']}"
 
-            # Available
-            avail = f"{date} {start}–{end}"
+            addr = f"{row['province']}/{row['district']}/{row['subdistrict']}"
 
-            # Start & Range Salary
+            # Salary
             min_sal = row.get("start_salary")
             max_sal = row.get("range_salary")
 
             st.markdown(f"""
 - **Email**: {email}
 - **Skill**: {skill}
-- **Available**: {avail}
+- **Date**: {date}
+- **Time**: {start} – {end}
 - **Location**: {addr}
 - **Start Salary**: {min_sal or '-'}
 - **Range Salary**: {max_sal or '-'}
