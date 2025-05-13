@@ -27,11 +27,11 @@ gc = gspread.authorize(creds)
 # ------------------------------------------------------------
 # 2. โหลดข้อมูลจาก Google Sheets
 # ------------------------------------------------------------
-SPREADSHEET_NAME = "FAST_LABOR"
+SPREADSHEET_NAME = "fastlabor"
 sheet = gc.open(SPREADSHEET_NAME)
 
-ws_jobs    = sheet.worksheet("PostJob")
-ws_seekers = sheet.worksheet("FindJob")
+ws_jobs    = sheet.worksheet("post_job")
+ws_seekers = sheet.worksheet("find_job")
 
 jobs_df    = pd.DataFrame(ws_jobs.get_all_records())
 seekers_df = pd.DataFrame(ws_seekers.get_all_records())
