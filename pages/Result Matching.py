@@ -1,8 +1,49 @@
+# pages/result_matching.py
+
 import streamlit as st
+import pandas as pd
+import json
+from oauth2client.service_account import ServiceAccountCredentials
+import gspread
 
+# —————————————————————————————————————————
+# 0. โหลด matching results (top3) + seekers_df จาก Google Sheets
+# —————————————————————————————————————————
+# (สมมติคุณมีฟังก์ชัน run_matching() คืน (top3, seekers_df))
+# ต่อไปนี้เป็นตัวอย่างการเชื่อมและดึงข้อมูลจาก GSheet แล้วคำนวณ matching
+
+# 1) เชื่อม GSheet
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    json.loads(st.secrets["gcp"]["credentials"]),
+    ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+)
+gc = gspread.authorize(creds)
+sh = gc.open("fastlabor")
+
+# 2) โหลด raw sheets
+def load_df(title):
+    ws   = sh.worksheet(title)
+    vals = ws.get_all_values()
+    df   = pd.DataFrame(vals[1:], columns=vals[0])
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    return df
+
+jobs_df    = load_df("post_job")
+seekers_df = load_df("find_job")
+
+# 3) สร้างคอลัมน์สำคัญสำหรับ matching (เฉพาะ job_type, datetime, location, wage)
+#    -- (คุณอาจ reuse โค้ด matching ที่มีอยู่)
+seekers_df["skills"] = seekers_df.get("job_detail", seekers_df.get("skills",""))
+# ... (logic เตรียม datetime, wages ตามก่อนหน้า) ...
+
+# 4) คำนวณ matching (ใช้ job_type_score, datetime_score, ฯลฯ ตามโค้ดก่อนหน้า)
+#    สมมติผลลัพธ์ออกมาเป็น DataFrame top3 มีคอลัมน์ ['seek_idx', 'seeker_id','score']
+#    และ seekers_df index เป็น range 0..N, มีคอลัมน์ gender & skills/job_type
+
+# —————————————————————————————————————————
+# UI: Header + Nav
+# —————————————————————————————————————————
 st.set_page_config(layout="centered")
-
-# Header
 st.markdown("### FAST LABOR")
 st.markdown("""
 <style>
@@ -21,70 +62,48 @@ st.markdown("""
 <div class="header">
     <div><strong>FAST LABOR</strong></div>
     <div class="nav-right">
-        <a href="#">Find Job</a>
-        <a href="#">My Job</a>
-        <a href="#" style="background: black; color: white; padding: 4px 10px; border-radius: 4px;">Profile</a>
+        <a href="/?page=find_job">Find Job</a>
+        <a href="/?page=list_job">My Job</a>
+        <a href="/?page=profile" style="background: black; color: white; padding: 4px 10px; border-radius: 4px;">Profile</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Title & Subtitle
 st.markdown("## Result matching")
 st.markdown("List of employee who was matching with job")
 
-# Image (ใช้ภาพประกอบผลลัพธ์การอนุมัติ)
-st.image("image.png", width=150)
-
-# ข้อมูลพนักงานจำลอง
-employees = [
-    {"name": "Employee No.1", "gender": "ชาย",
-        "skill": "ขับรถส่งของ",
-        "priority": 1,
-        "area": "กรุงเทพฯ"
-    },
-    {"name": "Employee No.2", "gender": "ชาย",
-        "skill": "ขับรถตู้",
-        "priority": 2,
-        "area": "นนทบุรี"
-    },
-    {"name": "Employee No.3", "gender": "ชาย",
-        "skill": "ขับรถผู้บริหาร",
-        "priority": 3,
-        "area": "สาทร, กรุงเทพฯ"
-    },
-    {"name": "Employee No.4", "gender": "หญิง",
-        "skill": "ขับมอเตอร์ไซค์ส่งของ",
-        "priority": 4,
-        "area": "ลาดพร้าว, กรุงเทพฯ"
-    },
-    {"name": "Employee No.5", "gender": "ชาย",
-        "skill": "ขับรถผู้บริหาร",
-        "priority": 2,
-        "area": "สาทร, กรุงเทพฯ"
-    },
-
-]
+# (ถ้ามีโลโก้)
+# st.image("image.png", width=150)
 
 st.markdown("---")
 
-# Form
+# —————————————————————————————————————————
+# 5. สร้าง form แสดง top3 คนจาก matching
+# —————————————————————————————————————————
 updated_priorities = {}
-
-for emp in employees:
-    with st.expander(emp["name"]):
-        st.write(f"เพศ: {emp['gender']}")
-        st.write(f"ทักษะ: {emp['skill']}")
-        priority = st.selectbox(
-            f"Priority", 
-            options=[1, 2, 3, 4, 5],
-            index=emp["priority"] - 1,
-            key=emp["name"]
+for idx, row in top3.reset_index(drop=True).iterrows():
+    seeker = seekers_df.loc[row.seek_idx]
+    with st.expander(f"Employee No.{idx+1}"):
+        # เพศ / ทักษะ
+        st.write(f"เพศ: {seeker.gender}")
+        st.write(f"ทักษะ: {seeker.job_type if 'job_type' in seeker else seeker.skills}")
+        # Priority dropdown
+        pr = st.selectbox(
+            "Priority",
+            options=[1,2,3,4,5],
+            index=idx if idx<5 else 0,
+            key=f"priority_{row.seeker_id}"
         )
-        updated_priorities[emp["name"]] = priority
+        updated_priorities[row.seeker_id] = pr
 
-# Confirm Button
+# —————————————————————————————————————————
+# 6. ปุ่ม Confirm และนำไปหน้า status_matching
+# —————————————————————————————————————————
 if st.button("Confirm"):
+    # ถ้าต้องการบันทึกลง GSheet หรือ DB ก็ทำที่นี่
+    # for sid, pr in updated_priorities.items():
+    #     … บันทึก …
     st.success("Your matching priorities have been saved!")
-    st.write("### Updated Priorities")
-    st.write(updated_priorities)
-    st.switch_page("pages/status_matching.py")
+    # สลับไปหน้า status_matching (multipage)
+    st.experimental_set_query_params(page="status_matching")
+    st.experimental_rerun()
