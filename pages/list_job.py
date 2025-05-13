@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 st.title("📄 My Jobs")
 
-# --- 1. Auth & connect to Google Sheets ---
+# --- 1. Authenticate & connect to Google Sheets ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -33,14 +33,13 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- 3. Normalize salary columns to strings without extra spaces ---
+# --- 3. Normalize salary columns so blanks become None ---
 for df in (df_post, df_find):
-    for c in ["start_salary","range_salary"]:
-        if c in df.columns:
-            # strip whitespace, convert empty to None
-            df[c] = df[c].astype(str).str.strip().replace({"": None})
+    for col in ("start_salary", "range_salary"):
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip().replace({"": None})
 
-# --- 4. Tabs ---
+# --- 4. Tabs: Post Job / Find Job ---
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -51,22 +50,21 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-
             email   = row["email"]
             jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail","–"))
+            detail  = row.get("skills", row.get("job_detail", "-"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
             addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
 
-            # Salary display
+            # Salary
             min_sal = row.get("start_salary")
             max_sal = row.get("range_salary")
             if min_sal or max_sal:
-                salary = f"{min_sal or '–'} – {max_sal or '–'}"
+                salary = f"{min_sal or '-'} – {max_sal or '-'}"
             else:
-                salary = row.get("salary","–")
+                salary = row.get("salary", "-")
 
             st.markdown(f"""
 - **Email**: {email}
@@ -88,9 +86,8 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
-
             email = row["email"]
-            skill = row.get("skills", row.get("job_detail","–"))
+            skill = row.get("skills", row.get("job_detail", "-"))
             date  = row["job_date"]
             start = row["start_time"]
             end   = row["end_time"]
@@ -99,17 +96,17 @@ with tab2:
             # Available
             avail = f"{date} {start}–{end}"
 
-            # Start & Range Salary (must use the normalized columns)
-            min_sal = row.get("start_salary") or "–"
-            max_sal = row.get("range_salary") or "–"
+            # Start & Range Salary
+            min_sal = row.get("start_salary")
+            max_sal = row.get("range_salary")
 
             st.markdown(f"""
 - **Email**: {email}
 - **Skill**: {skill}
 - **Available**: {avail}
 - **Location**: {addr}
-- **Start Salary**: {min_sal}
-- **Range Salary**: {max_sal}
+- **Start Salary**: {min_sal or '-'}
+- **Range Salary**: {max_sal or '-'}
 """)
             if st.button("View Matching", key=f"view_find_{idx}"):
                 st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
