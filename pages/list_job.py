@@ -1,21 +1,23 @@
+# pages/list_job.py
+
 import streamlit as st
 import pandas as pd
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1. Set page config first
+# 1. page_config
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 
-# 2. Auth guard (assuming you’ve set st.session_state["logged_in"] elsewhere)
+# 2. guard login (สมมติคุณเซ็ต st.session_state["logged_in"] จาก login.py)
 if not st.session_state.get("logged_in", False):
     st.experimental_set_query_params(page="login")
     st.stop()
 
 st.title("📄 My Jobs")
 
-# 3. Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# 3. เชื่อม Google Sheets
+scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]), scope
@@ -36,14 +38,14 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# 5. Clean salary columns
+# 5. clean salary
 for df in (df_post, df_find):
-    for col in ("start_salary", "range_salary"):
+    for col in ("start_salary","range_salary"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace({"": None})
 
-# 6. Tabs
-tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
+# 6. render tabs
+tab1, tab2 = st.tabs(["📌 Post Job","🔍 Find Job"])
 
 with tab1:
     st.subheader("📌 รายการโพสต์งาน")
@@ -56,13 +58,13 @@ with tab1:
 
             email   = row["email"]
             jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail", "–"))
+            detail  = row.get("skills", row.get("job_detail","–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
             addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            min_sal = row.get("start_salary") or row.get("salary", "–")
-            max_sal = row.get("range_salary") or row.get("salary", "–")
+            min_sal = row.get("start_salary") or row.get("salary","–")
+            max_sal = row.get("range_salary") or row.get("salary","–")
 
             st.markdown(f"""
 - **Email**: {email}
@@ -73,9 +75,9 @@ with tab1:
 - **Location**: {addr}
 - **Salary**: {min_sal} – {max_sal}
 """)
-
+            # ใช้ page ชื่อ result_matching (ไม่ใส่นามสกุล .py)
             st.page_link(
-                "pages/result_matching.py",
+                page="result_matching",
                 label="🔍 View Matching",
                 params={"job_idx": idx}
             )
@@ -90,7 +92,7 @@ with tab2:
             st.markdown(f"### Find #{idx+1}")
 
             email   = row["email"]
-            skill   = row.get("skills", row.get("job_detail", "–"))
+            skill   = row.get("skills", row.get("job_detail","–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
@@ -107,13 +109,12 @@ with tab2:
 - **Start Salary**: {min_sal}
 - **Range Salary**: {max_sal}
 """)
-
             st.page_link(
-                "pages/result_matching.py",
+                page="result_matching",
                 label="🔍 View Matching",
                 params={"seeker_idx": idx}
             )
 
-# 7. Back to Home
+# 7. back home
 st.markdown("---")
-st.page_link("pages/home.py", label="🏠 Go to Homepage")
+st.page_link(page="home", label="🏠 Go to Homepage")
