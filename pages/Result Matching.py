@@ -7,133 +7,167 @@ from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 
-# 1) Page config + guard
-st.set_page_config(page_title="Result Matching | FAST LABOR", layout="wide")
-if not st.session_state.get("logged_in", False):
-    st.experimental_set_query_params(page="login")
-    st.stop()
-
-# 2) Header / nav
+# —————————————————————————————————————————
+# 1. Page config & header/navbar
+# —————————————————————————————————————————
+st.set_page_config(page_title="Result matching | FAST LABOR", layout="centered")
 st.markdown("### FAST LABOR")
 st.markdown("""
 <style>
-.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
-.nav-right a { margin-left:20px; text-decoration:none; font-weight:bold; }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.nav-right a {
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: bold;
+}
 </style>
 <div class="header">
-  <div><strong>FAST LABOR</strong></div>
-  <div class="nav-right">
-    <a href="/?page=find_job">Find Job</a>
-    <a href="/?page=list_job">My Jobs</a>
-    <a href="/?page=profile" style="background:black;color:white;padding:4px 10px;border-radius:4px">Profile</a>
-  </div>
+    <div><strong>FAST LABOR</strong></div>
+    <div class="nav-right">
+        <a href="/?page=find_job">Find Job</a>
+        <a href="/?page=list_job">My Job</a>
+        <a href="/?page=profile" style="background: black; color: white; padding: 4px 10px; border-radius: 4px;">Profile</a>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("## Result Matching")
-st.markdown("List of employees matching this job")
+st.markdown("## Result matching")
+st.markdown("List of employee who was matching with job")
 st.markdown("---")
 
-# 3) Read query params
-params = st.experimental_get_query_params()
-job_idx    = params.get("job_idx", [None])[0]
-seeker_idx = params.get("seeker_idx", [None])[0]
-
-# 4) Google Sheets setup
+# —————————————————————————————————————————
+# 2. Connect to Google Sheets and load data
+# —————————————————————————————————————————
 creds_json = json.loads(st.secrets["gcp"]["credentials"])
 scope = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-gc    = gspread.authorize(creds)
-sh    = gc.open("fastlabor")
+gc = gspread.authorize(creds)
+sh = gc.open("fastlabor")
 
-def load_df(sheet):
-    ws   = sh.worksheet(sheet)
+def load_df(sheet_name):
+    ws = sh.worksheet(sheet_name)
     vals = ws.get_all_values()
-    df   = pd.DataFrame(vals[1:], columns=vals[0])
-    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    df = pd.DataFrame(vals[1:], columns=vals[0])
+    df.columns = (
+        df.columns
+          .str.strip()
+          .str.lower()
+          .str.replace(" ", "_")
+    )
     return df
 
-jobs    = load_df("post_job")
-seekers = load_df("find_job")
+jobs_df    = load_df("post_job")
+seekers_df = load_df("find_job")
 
-# 5) Prepare datetime & numeric
-for df in (jobs, seekers):
-    df["job_date"] = pd.to_datetime(df["job_date"], errors="coerce")
-    for tcol in ("start_time","end_time"):
-        df[tcol] = pd.to_datetime(df[tcol], format="%H:%M:%S", errors="coerce").dt.time
-    for wage in ("start_salary","range_salary","salary"):
-        if wage in df.columns:
-            df[wage] = pd.to_numeric(df[wage], errors="coerce").fillna(0)
+# —————————————————————————————————————————
+# 3. Prepare data for matching
+# —————————————————————————————————————————
+jobs_df["job_date"]    = pd.to_datetime(jobs_df["job_date"], errors="coerce")
+seekers_df["job_date"] = pd.to_datetime(seekers_df["job_date"], errors="coerce")
 
 def make_dt(df, date_col, time_col, out_col):
-    df[out_col] = df.apply(lambda r: datetime.combine(r[date_col], r[time_col]), axis=1)
+    df[out_col] = pd.to_datetime(
+        df[date_col].dt.strftime("%Y-%m-%d") + " " +
+        df[time_col].astype(str),
+        errors="coerce"
+    )
 
-make_dt(jobs,    "job_date","start_time","job_start_dt")
-make_dt(jobs,    "job_date","end_time",  "job_end_dt")
-make_dt(seekers, "job_date","start_time","avail_start_dt")
-make_dt(seekers, "job_date","end_time",  "avail_end_dt")
+make_dt(jobs_df,    "job_date","start_time","start_dt")
+make_dt(jobs_df,    "job_date","end_time","end_dt")
+make_dt(seekers_df, "job_date","start_time","avail_start")
+make_dt(seekers_df, "job_date","end_time","avail_end")
 
-jobs["min_wage"] = jobs["start_salary"]
-jobs["max_wage"] = jobs["range_salary"]
-seekers["exp_wage"] = seekers["start_salary"]
+jobs_df["min_wage"]         = pd.to_numeric(jobs_df.get("start_salary",0), errors="coerce")
+jobs_df["max_wage"]         = pd.to_numeric(jobs_df.get("range_salary",0), errors="coerce")
+seekers_df["expected_wage"] = pd.to_numeric(seekers_df.get("salary",0), errors="coerce")
 
-# 6) Scoring
-def s_type(j,s): return 1 if j.job_type.lower()==s.job_type.lower() else 0
-def s_time(j,s): return 1 if (min(j.job_end_dt, s.avail_end_dt) - max(j.job_start_dt, s.avail_start_dt)).total_seconds()>0 else 0
-def s_loc(j,s):  return 1 if (j.province, j.district, j.subdistrict)==(s.province, s.district, s.subdistrict) else 0
-def s_wage(j,s): return 1 if j.min_wage <= s.exp_wage <= j.max_wage else 0
+jobs_df["job_type"]    = jobs_df["job_type"].astype(str).str.strip()
+seekers_df["job_type"] = seekers_df["job_type"].astype(str).str.strip()
 
-w = {"type":0.4, "time":0.2, "loc":0.2, "wage":0.2}
+# —————————————————————————————————————————
+# 4. Define scoring functions
+# —————————————————————————————————————————
+def job_type_score(job, seeker):
+    return 1.0 if job.job_type.lower() == seeker.job_type.lower() else 0.0
+
+def datetime_score(job, seeker):
+    ov = (min(job.end_dt, seeker.avail_end) -
+          max(job.start_dt, seeker.avail_start)).total_seconds()
+    return 1.0 if ov > 0 else 0.0
+
+def location_score(job, seeker):
+    return 1.0 if (
+        job.province   == seeker.province
+        and job.district   == seeker.district
+        and job.subdistrict== seeker.subdistrict
+    ) else 0.0
+
+def wage_score(job, seeker):
+    return 1.0 if job.min_wage <= seeker.expected_wage <= job.max_wage else 0.0
+
+# —————————————————————————————————————————
+# 5. Compute matching & select Top-5 per job
+# —————————————————————————————————————————
+weights = {"type":0.4, "time":0.2, "loc":0.2, "wage":0.2}
 records = []
 
-for i, job in jobs.iterrows():
-    # filter by job_idx if provided
-    if job_idx is not None and str(i) != str(job_idx):
-        continue
-    for j, seeker in seekers.iterrows():
-        if seeker_idx is not None and str(j) != str(seeker_idx):
-            continue
+for i, job in jobs_df.iterrows():
+    for j, seeker in seekers_df.iterrows():
         score = (
-            s_type(job,seeker)*w["type"] +
-            s_time(job,seeker)*w["time"] +
-            s_loc(job,seeker)*w["loc"] +
-            s_wage(job,seeker)*w["wage"]
+            job_type_score(job,seeker)*weights["type"] +
+            datetime_score(job,seeker)*weights["time"] +
+            location_score(job,seeker)*weights["loc"] +
+            wage_score(job,seeker)*weights["wage"]
         )
         if score > 0:
-            records.append({"job_idx":i, "seek_idx":j, "score":score})
+            records.append({
+                "job_idx":   i,
+                "seek_idx":  j,
+                "seeker_id": seeker.email,
+                "score":     score
+            })
 
 matches = pd.DataFrame(records)
 if matches.empty:
     st.info("⚠️ ยังไม่มีคู่ที่ match ได้")
     st.stop()
 
-# Top-5 per job
 top5 = (
     matches
     .sort_values(["job_idx","score"], ascending=[True,False])
     .groupby("job_idx")
-    .head(5)
+    .head(5)           # <-- Top 5
     .reset_index(drop=True)
 )
 
-# 7) Show expanders
+# —————————————————————————————————————————
+# 6. Render expanders for Top-5 with default Priority = idx+1
+# —————————————————————————————————————————
 updated_priorities = {}
-for rank, row in enumerate(top5.itertuples(), start=1):
-    seeker = seekers.loc[row.seek_idx]
-    with st.expander(f"Employee No.{rank}"):
-        st.write(f"- Email: {seeker.email}")
-        st.write(f"- Skill: {seeker.job_type}")
+
+for idx, row in top5.iterrows():  # idx = 0..4
+    seeker = seekers_df.loc[row.seek_idx]
+    with st.expander(f"Employee No.{idx+1}"):
+        st.write(f"ทักษะ: {seeker.job_type}")
         priority = st.selectbox(
             "Priority",
             options=[1,2,3,4,5],
-            index=rank-1,
-            key=f"prio_{rank}"
+            index=idx,                # <-- default is idx (0→1,1→2…)
+            key=f"priority_{idx}"
         )
         updated_priorities[seeker.email] = priority
 
-# 8) Confirm
+# —————————————————————————————————————————
+# 7. Confirm button & navigation
+# —————————————————————————————————————————
 if st.button("Confirm"):
     st.success("Your matching priorities have been saved!")
+    st.write("### Updated priorities")
     st.write(updated_priorities)
     st.experimental_set_query_params(page="status_matching")
     st.experimental_rerun()
