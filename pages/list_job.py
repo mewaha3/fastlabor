@@ -28,7 +28,6 @@ def load_df(sheet_name: str) -> pd.DataFrame:
         header = vals[0]
         data   = vals[1:]
         df     = pd.DataFrame(data, columns=header)
-        # normalize column names
         df.columns = (
             df.columns
               .str.strip()
@@ -54,7 +53,6 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-            # Prepare fields
             email   = row.get("email","–")
             jtype   = row.get("job_type","–")
             detail  = row.get("skills", row.get("job_detail","–"))
@@ -66,7 +64,6 @@ with tab1:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                       ])
-            # salary
             sal_min = row.get("start_salary") or ""
             sal_max = row.get("range_salary") or ""
             if sal_min or sal_max:
@@ -94,7 +91,6 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
-            # Prepare fields
             email  = row.get("email","–")
             skill  = row.get("skills", row.get("job_detail","–"))
             date   = row.get("job_date","–")
@@ -105,7 +101,7 @@ with tab2:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                      ])
-            # Available wage fields
+            # show both the availability and the salary range
             sal_min = row.get("start_salary") or "–"
             sal_max = row.get("range_salary") or "–"
 
