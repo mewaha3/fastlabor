@@ -9,25 +9,32 @@ from oauth2client.service_account import ServiceAccountCredentials
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 st.title("📄 My Jobs")
 
-# --- Auth & connect ---
+# —————————————————————————————————————————
+# 1. Authenticate & connect to Google Sheets
+# —————————————————————————————————————————
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]), scope
     )
 else:
-    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "pages/credentials.json", scope
+    )
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# --- Robust loader using get_all_values() ---
+# —————————————————————————————————————————
+# 2. Robust loader using get_all_values()
+# —————————————————————————————————————————
 def load_df(sheet_name: str) -> pd.DataFrame:
     try:
         ws   = sh.worksheet(sheet_name)
-        vals = ws.get_all_values()
+        vals = ws.get_all_values()               # raw values
         header = vals[0]
         data   = vals[1:]
         df     = pd.DataFrame(data, columns=header)
+        # normalize column names
         df.columns = (
             df.columns
               .str.strip()
@@ -42,10 +49,9 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- DEBUG: ดูชื่อคอลัมน์ของ df_find ---
-st.write("Find Job columns:", df_find.columns.tolist())
-
-# --- Tabs: Post Job / Find Job ---
+# —————————————————————————————————————————
+# 3. Tabs: Post Job / Find Job
+# —————————————————————————————————————————
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -56,23 +62,22 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-            email   = row.get("email","–")
-            jtype   = row.get("job_type","–")
+
+            email   = row["email"]
+            jtype   = row["job_type"]
             detail  = row.get("skills", row.get("job_detail","–"))
-            date    = row.get("job_date","–")
-            start   = row.get("start_time","–")
-            end     = row.get("end_time","–")
-            addr    = row.get("job_address") or "/".join([
-                        row.get("province","–"),
-                        row.get("district","–"),
-                        row.get("subdistrict","–")
-                      ])
-            sal_min = row.get("start_salary") or ""
-            sal_max = row.get("range_salary") or ""
-            if sal_min or sal_max:
-                salary = f"{sal_min} – {sal_max}"
+            date    = row["job_date"]
+            start   = row["start_time"]
+            end     = row["end_time"]
+            addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
+
+            # salary from start_salary/range_salary, fallback to salary
+            min_sal = row.get("start_salary","").strip()
+            max_sal = row.get("range_salary","").strip()
+            if min_sal or max_sal:
+                salary = f"{min_sal or '–'} – {max_sal or '–'}"
             else:
-                salary = row.get("salary","–") or "–"
+                salary = row.get("salary","–")
 
             st.markdown(f"""
 - **Email**: {email}
@@ -94,31 +99,32 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
-            email   = row.get("email","–")
-            skill   = row.get("skills", row.get("job_detail","–"))
-            date    = row.get("job_date","–")
-            start   = row.get("start_time","–")
-            end     = row.get("end_time","–")
-            addr    = "/".join([
-                         row.get("province","–"),
-                         row.get("district","–"),
-                         row.get("subdistrict","–")
-                      ])
-            # — ที่สำคัญ ใช้ key ตาม header จริงที่เพิ่งพิมพ์ออกมา —
-            sal_min = row.get("start_salary") or "–"
-            sal_max = row.get("range_salary") or "–"
+
+            email = row["email"]
+            skill = row.get("skills", row.get("job_detail","–"))
+            date  = row["job_date"]
+            start = row["start_time"]
+            end   = row["end_time"]
+            addr  = f"{row['province']}/{row['district']}/{row['subdistrict']}"
+
+            # ดึงจากคอลัมน์ start_salary & range_salary
+            min_sal = row.get("start_salary","").strip()
+            max_sal = row.get("range_salary","").strip()
 
             st.markdown(f"""
 - **Email**: {email}
 - **Skill**: {skill}
 - **Available**: {date} {start}–{end}
 - **Location**: {addr}
-- **Start Salary**: {sal_min}
-- **Range Salary**: {sal_max}
+- **Start Salary**: {min_sal or '–'}
+- **Range Salary**: {max_sal or '–'}
 """)
             if st.button("View Matching", key=f"view_find_{idx}"):
                 st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
                 st.experimental_rerun()
 
+# —————————————————————————————————————————
+# 4. Back to Home
+# —————————————————————————————————————————
 st.markdown("---")
 st.page_link("pages/home.py", label="🏠 Go to Homepage")
