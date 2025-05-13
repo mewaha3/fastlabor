@@ -141,7 +141,7 @@ top5 = (
     matches
     .sort_values(["job_idx","score"], ascending=[True,False])
     .groupby("job_idx")
-    .head(5)           # <-- Top 5
+    .head(4)           # <-- Top 5
     .reset_index(drop=True)
 )
 
