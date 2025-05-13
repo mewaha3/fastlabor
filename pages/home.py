@@ -81,7 +81,7 @@ with buttons_container:
     with col2:
         if st.button("🔎 Find Job"):
             st.switch_page("pages/find_job.py")
-st.page_link("pages/Result Matching.py", label="Result Matching", icon="📝")
+st.page_link("pages/list_job.py", label="List Job", icon="📝")
 st.markdown("</div>", unsafe_allow_html=True)  # ปิด .content
 
 # ✅ ส่วนท้าย (FAST LABOR + Social Media)
