@@ -9,9 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 st.title("📄 My Jobs")
 
-# —————————————————————————————————————————
-# 1. Authenticate & connect to Google Sheets
-# —————————————————————————————————————————
+# --- Auth & connect ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -22,9 +20,7 @@ else:
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# —————————————————————————————————————————
-# 2. Robust loader using get_all_values()
-# —————————————————————————————————————————
+# --- Robust loader using get_all_values() ---
 def load_df(sheet_name: str) -> pd.DataFrame:
     try:
         ws   = sh.worksheet(sheet_name)
@@ -46,9 +42,10 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# —————————————————————————————————————————
-# 3. Tabs: Post Job / Find Job
-# —————————————————————————————————————————
+# --- DEBUG: ดูชื่อคอลัมน์ของ df_find ---
+st.write("Find Job columns:", df_find.columns.tolist())
+
+# --- Tabs: Post Job / Find Job ---
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -70,7 +67,6 @@ with tab1:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                       ])
-            # Salary: new or old columns
             sal_min = row.get("start_salary") or ""
             sal_max = row.get("range_salary") or ""
             if sal_min or sal_max:
@@ -108,7 +104,7 @@ with tab2:
                          row.get("district","–"),
                          row.get("subdistrict","–")
                       ])
-            # Start & range salary
+            # — ที่สำคัญ ใช้ key ตาม header จริงที่เพิ่งพิมพ์ออกมา —
             sal_min = row.get("start_salary") or "–"
             sal_max = row.get("range_salary") or "–"
 
