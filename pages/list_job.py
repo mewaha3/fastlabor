@@ -1,5 +1,3 @@
-# pages/list_job.py
-
 import streamlit as st
 import pandas as pd
 import gspread
@@ -18,14 +16,16 @@ if "gcp" in st.secrets:
 else:
     creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 client = gspread.authorize(creds)
-sheet  = client.open("fastlabor")
+sh     = client.open("fastlabor")
 
 # --- Robust loader ---
 def load_df(name: str) -> pd.DataFrame:
     try:
-        ws   = sheet.worksheet(name)
+        ws   = sh.worksheet(name)
         vals = ws.get_all_values()
-        df   = pd.DataFrame(vals[1:], columns=vals[0])
+        header = vals[0]
+        data   = vals[1:]
+        df     = pd.DataFrame(data, columns=header)
         df.columns = (
             df.columns
               .str.strip()
@@ -40,7 +40,7 @@ def load_df(name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- Tabs ---
+# --- Tabs: Post Job / Find Job ---
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -51,15 +51,33 @@ with tab1:
         for idx, row in df_post.iterrows():
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
-            sal_min = row.get("start_salary") or "–"
-            sal_max = row.get("range_salary") or "–"
-            salary  = f"{sal_min} – {sal_max}" if (sal_min!="–" or sal_max!="–") else "–"
+            # Prepare fields
+            email   = row.get("email","–")
+            jtype   = row.get("job_type","–")
+            detail  = row.get("skills", row.get("job_detail","–"))
+            date    = row.get("job_date","–")
+            start   = row.get("start_time","–")
+            end     = row.get("end_time","–")
+            addr    = row.get("job_address") or "/".join([
+                        row.get("province","–"),
+                        row.get("district","–"),
+                        row.get("subdistrict","–")
+                      ])
+            # salary: try new columns, else old
+            sal_min = row.get("start_salary") or ""
+            sal_max = row.get("range_salary") or ""
+            if sal_min or sal_max:
+                salary = f"{sal_min} – {sal_max}"
+            else:
+                salary = row.get("salary","–") or "–"
+
+            # render
             st.markdown(f"""
-- **Email**: {row.get("email","–")}
-- **Job Type**: {row.get("job_type","–")}
-- **Detail**: {row.get("skills", row.get("job_detail","–"))}
-- **Date & Time**: {row.get("job_date","–")} {row.get("start_time","–")}-{row.get("end_time","–")}
-- **Location**: {row.get("province","–")}/{row.get("district","–")}/{row.get("subdistrict","–")}
+- **Email**: {email}
+- **Job Type**: {jtype}
+- **Detail**: {detail}
+- **Date & Time**: {date} {start}–{end}
+- **Location**: {addr}
 - **Salary**: {salary}
 """)
             if st.button("View Matching", key=f"view_post_{idx}"):
@@ -74,18 +92,33 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
+            email  = row.get("email","–")
+            skill  = row.get("skills", row.get("job_detail","–"))
+            date   = row.get("job_date","–")
+            start  = row.get("start_time","–")
+            end    = row.get("end_time","–")
+            addr   = "/".join([
+                        row.get("province","–"),
+                        row.get("district","–"),
+                        row.get("subdistrict","–")
+                     ])
+            # expected wage: prefer salary column
+            exp_wage = row.get("salary") or ""
+            if not exp_wage:
+                # or from range_salary
+                exp_wage = row.get("start_salary") or ""
+            exp_wage = exp_wage or "–"
+
             st.markdown(f"""
-- **Email**: {row.get("email","–")}
-- **Skill**: {row.get("skills","–")}
-- **Available**: {row.get("job_date","–")} {row.get("start_time","–")}-{row.get("end_time","–")}
-- **Location**: {row.get("province","–")}/{row.get("district","–")}/{row.get("subdistrict","–")}
-- **Expected Wage**: {row.get("salary","–")}
+- **Email**: {email}
+- **Skill**: {skill}
+- **Available**: {date} {start}–{end}
+- **Location**: {addr}
+- **Expected Wage**: {exp_wage}
 """)
-            # ปุ่ม View Matching ใน Find Job
             if st.button("View Matching", key=f"view_find_{idx}"):
                 st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
                 st.experimental_rerun()
 
-# --- Back to home ---
 st.markdown("---")
 st.page_link("pages/home.py", label="🏠 Go to Homepage")
