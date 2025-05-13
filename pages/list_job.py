@@ -5,120 +5,107 @@ import pandas as pd
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
-st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
-st.title("📄 My Jobs")
+# 1. อ่าน Query Params
+params   = st.experimental_get_query_params()
+job_idx  = params.get("job_idx", [None])[0]
+seek_idx = params.get("seeker_idx", [None])[0]
 
-# --- 1. Authenticate & connect to Google Sheets ---
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# --- Google Sheets connection (เหมือนเดิม) ---
+scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]), scope
     )
 else:
-    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-client = gspread.authorize(creds)
-sh     = client.open("fastlabor")
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "pages/credentials.json", scope
+    )
+gc    = gspread.authorize(creds)
+sheet = gc.open("fastlabor")
 
-# --- 2. Robust loader using get_all_values() ---
-def load_df(sheet_name: str) -> pd.DataFrame:
-    ws   = sh.worksheet(sheet_name)
+def load_df(name: str) -> pd.DataFrame:
+    ws   = sheet.worksheet(name)
     vals = ws.get_all_values()
-    header = vals[0]
-    data   = vals[1:]
-    df     = pd.DataFrame(data, columns=header)
-    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    df   = pd.DataFrame(vals[1:], columns=vals[0])
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ","_")
     return df
 
-df_post = load_df("post_job")
-df_find = load_df("find_job")
+jobs_df    = load_df("post_job")
+seekers_df = load_df("find_job")
 
-# --- 3. Clean up salary columns ---
-for df in (df_post, df_find):
-    for col in ("start_salary", "range_salary"):
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.strip().replace({"": None})
+# Normalize datetime & wages for matching
+jobs_df["job_date"]    = pd.to_datetime(jobs_df["job_date"], errors="coerce")
+seekers_df["job_date"] = pd.to_datetime(seekers_df["job_date"], errors="coerce")
 
-# --- 4. Tabs: Post Job / Find Job ---
-tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
+def mkdt(df, dcol, tcol, out):
+    df[out] = pd.to_datetime(df[dcol].dt.strftime("%Y-%m-%d")+" "+df[tcol])
+for df,dcols in ((jobs_df,("start_time","end_time")), (seekers_df,("start_time","end_time"))):
+    mkdt(df, "job_date", dcols[0], "avail_start" if df is seekers_df else "start_dt")
+    mkdt(df, "job_date", dcols[1], "avail_end"   if df is seekers_df else "end_dt")
 
-with tab1:
-    st.subheader("📌 รายการโพสต์งาน")
-    if df_post.empty:
-        st.info("ยังไม่มีข้อมูลโพสต์งาน")
+for df in (jobs_df, seekers_df):
+    for c in ("start_salary","range_salary"):
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+
+# ฟังก์ชัน score
+def score(j,s):
+    w = {"type":0.4,"time":0.2,"loc":0.2,"wage":0.2}
+    s1 = 1 if j.job_type.lower()==s.job_type.lower() else 0
+    s2 = 1 if (min(j.end_dt,s.avail_end)-max(j.start_dt,s.avail_start)).total_seconds()>0 else 0
+    s3 = 1 if (j.province,district:=j.district,j.subdistrict)==(s.province,s.district,s.subdistrict) else 0
+    s4 = 1 if j.start_salary<=s.start_salary<=j.range_salary else 0
+    return s1*w["type"]+s2*w["time"]+s3*w["loc"]+s4*w["wage"]
+
+# --- UI ---
+st.set_page_config(layout="wide")
+st.markdown("<h1>📄 My Jobs</h1>", unsafe_allow_html=True)
+
+# ถ้ามี param ให้แสดงผล Matching
+if job_idx is not None or seek_idx is not None:
+    st.subheader("🔍 Matching Results")
+    recs = []
+    for i,j in jobs_df.iterrows():
+        if job_idx is not None and str(i)!=job_idx: continue
+        for k,s in seekers_df.iterrows():
+            if seek_idx is not None and str(k)!=seek_idx: continue
+            sc = score(j,s)
+            if sc>0:
+                recs.append((i,k,sc))
+
+    if not recs:
+        st.info("❌ ไม่พบคู่ Matching")
     else:
-        for idx, row in df_post.iterrows():
+        # sort
+        recs.sort(key=lambda x:-x[2])
+        for rank,(i,k,sc) in enumerate(recs,1):
+            job = jobs_df.loc[i]; s = seekers_df.loc[k]
+            st.markdown(f"### Rank {rank} (score {sc:.2f})")
+            st.markdown(f"- **Job**: {job.job_type} on {job.job_date.date()} ({job.start_time}–{job.end_time})")
+            st.markdown(f"- **Seeker**: {s.email} ({s.skills})  \n  Available: {s.job_date.date()} {s.start_time}–{s.end_time}  \n  Wage: {s.start_salary}–{s.range_salary}")
+    # ปุ่มกลับ
+    if st.button("🔙 Back to My Jobs"):
+        st.experimental_set_query_params()  # ล้าง params ทั้งหมด
+        st.experimental_rerun()
+
+else:
+    # ปกติแสดง My Jobs
+    tab1,tab2 = st.tabs(["📌 Post Job","🔍 Find Job"])
+    with tab1:
+        st.subheader("📌 รายการโพสต์งาน")
+        for i,row in jobs_df.iterrows():
             st.markdown("---")
-            st.markdown(f"### Job #{idx+1}")
-
-            email = row["email"]
-            jtype = row["job_type"]
-            detail = row.get("skills", row.get("job_detail", "-"))
-
-            # แยก Date กับ Time
-            date  = row["job_date"]
-            start = row["start_time"]
-            end   = row["end_time"]
-
-            addr = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-
-            # Salary display
-            min_sal = row.get("start_salary")
-            max_sal = row.get("range_salary")
-            if min_sal or max_sal:
-                salary = f"{min_sal or '-'} – {max_sal or '-'}"
-            else:
-                salary = row.get("salary", "-")
-
-            st.markdown(f"""
-- **Email**: {email}
-- **Job Type**: {jtype}
-- **Detail**: {detail}
-- **Date**: {date}
-- **Time**: {start} – {end}
-- **Location**: {addr}
-- **Salary**: {salary}
-""")
-            if st.button("View Matching", key=f"view_post_{idx}"):
-                st.experimental_set_query_params(page="result_matching", job_idx=idx)
+            st.markdown(f"**Job #{i+1}**  {row.job_type}")
+            if st.button("View Matching", key=f"jm{i}"):
+                st.experimental_set_query_params(job_idx=i)
                 st.experimental_rerun()
-
-with tab2:
-    st.subheader("🔍 รายการค้นหางาน")
-    if df_find.empty:
-        st.info("ยังไม่มีข้อมูลค้นหางาน")
-    else:
-        for idx, row in df_find.iterrows():
+    with tab2:
+        st.subheader("🔍 รายการค้นหางาน")
+        for k,row in seekers_df.iterrows():
             st.markdown("---")
-            st.markdown(f"### Find #{idx+1}")
-
-            email = row["email"]
-            skill = row.get("skills", row.get("job_detail", "-"))
-
-            # แยก Date กับ Time
-            date  = row["job_date"]
-            start = row["start_time"]
-            end   = row["end_time"]
-
-            addr = f"{row['province']}/{row['district']}/{row['subdistrict']}"
-
-            # Salary
-            min_sal = row.get("start_salary")
-            max_sal = row.get("range_salary")
-
-            st.markdown(f"""
-- **Email**: {email}
-- **Skill**: {skill}
-- **Date**: {date}
-- **Time**: {start} – {end}
-- **Location**: {addr}
-- **Start Salary**: {min_sal or '-'}
-- **Range Salary**: {max_sal or '-'}
-""")
-            if st.button("View Matching", key=f"view_find_{idx}"):
-                st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
+            st.markdown(f"**Find #{k+1}**  {row.skills}")
+            if st.button("View Matching", key=f"sk{k}"):
+                st.experimental_set_query_params(seeker_idx=k)
                 st.experimental_rerun()
-
-# --- 5. Back to Home ---
-st.markdown("---")
-st.page_link("pages/home.py", label="🏠 Go to Homepage")
