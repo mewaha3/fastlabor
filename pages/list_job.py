@@ -6,10 +6,10 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1. page_config
+# 1. ต้องเรียก set_page_config เป็นคำสั่งแรกสุด
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 
-# 2. guard login (สมมติคุณเซ็ต st.session_state["logged_in"] จาก login.py)
+# 2. Auth guard (สมมติคุณเซ็ต st.session_state["logged_in"] ใน login.py)
 if not st.session_state.get("logged_in", False):
     st.experimental_set_query_params(page="login")
     st.stop()
@@ -17,7 +17,7 @@ if not st.session_state.get("logged_in", False):
 st.title("📄 My Jobs")
 
 # 3. เชื่อม Google Sheets
-scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]), scope
@@ -38,14 +38,14 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# 5. clean salary
+# 5. Clean salary columns
 for df in (df_post, df_find):
-    for col in ("start_salary","range_salary"):
+    for col in ("start_salary", "range_salary"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace({"": None})
 
-# 6. render tabs
-tab1, tab2 = st.tabs(["📌 Post Job","🔍 Find Job"])
+# 6. Tabs for Post Job / Find Job
+tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
     st.subheader("📌 รายการโพสต์งาน")
@@ -56,16 +56,18 @@ with tab1:
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
 
+            # Extract fields
             email   = row["email"]
             jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail","–"))
+            detail  = row.get("skills", row.get("job_detail", "–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
             addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            min_sal = row.get("start_salary") or row.get("salary","–")
-            max_sal = row.get("range_salary") or row.get("salary","–")
+            min_sal = row.get("start_salary") or row.get("salary", "–")
+            max_sal = row.get("range_salary") or row.get("salary", "–")
 
+            # Render Markdown
             st.markdown(f"""
 - **Email**: {email}
 - **Job Type**: {jtype}
@@ -75,10 +77,11 @@ with tab1:
 - **Location**: {addr}
 - **Salary**: {min_sal} – {max_sal}
 """)
-            # ใช้ page ชื่อ result_matching (ไม่ใส่นามสกุล .py)
+
+            # ← ตรงนี้สำคัญ ต้องเรียกเป็น keyword args ทั้งหมด
             st.page_link(
-                page="result_matching",
                 label="🔍 View Matching",
+                page="result_matching",
                 params={"job_idx": idx}
             )
 
@@ -92,7 +95,7 @@ with tab2:
             st.markdown(f"### Find #{idx+1}")
 
             email   = row["email"]
-            skill   = row.get("skills", row.get("job_detail","–"))
+            skill   = row.get("skills", row.get("job_detail", "–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
@@ -110,11 +113,11 @@ with tab2:
 - **Range Salary**: {max_sal}
 """)
             st.page_link(
-                page="result_matching",
                 label="🔍 View Matching",
+                page="result_matching",
                 params={"seeker_idx": idx}
             )
 
-# 7. back home
+# 7. Back to Homepage
 st.markdown("---")
-st.page_link(page="home", label="🏠 Go to Homepage")
+st.page_link(label="🏠 Go to Homepage", page="home")
