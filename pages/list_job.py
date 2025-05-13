@@ -1,62 +1,74 @@
-# pages/list_job.py
-
 import streamlit as st
-import pandas as pd
-import json
-from oauth2client.service_account import ServiceAccountCredentials
 import gspread
+import json
+import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
-st.title("📄 My Jobs")
+st.set_page_config(page_title="Job Detail", page_icon="📄", layout="wide")
+st.title("📄 Job Detail")
+st.write("ดูข้อมูลจากการโพสต์งานและการค้นหางาน")
 
-# —————————————————————————————————————————
-# 1. โหลดข้อมูล PostJob จาก Google Sheets
-# —————————————————————————————————————————
-creds_json = json.loads(st.secrets["gcp"]["credentials"])
-scope = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-gc = gspread.authorize(creds)
-sh = gc.open("fastlabor")
+# ✅ Auth Google Sheets
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+try:
+    if "gcp" in st.secrets:
+        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 
-# โหลด sheet
-ws = sh.worksheet("post_job")
-vals = ws.get_all_values()
-jobs_df = pd.DataFrame(vals[1:], columns=vals[0])
-# normalize columns
-jobs_df.columns = jobs_df.columns.str.strip().str.lower().str.replace(" ", "_")
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("fastlabor")
 
-# —————————————————————————————————————————
-# 2. แปลงชนิดข้อมูล (ตามที่ต้องการ)
-# —————————————————————————————————————————
-jobs_df["job_date"] = pd.to_datetime(jobs_df["job_date"], errors="coerce")
-# ถ้ามี start_time/end_time ก็แปลง datetime ต่อได้
+    # ✅ Load data from both sheets
+    def load_sheet(sheet_name):
+        try:
+            worksheet = spreadsheet.worksheet(sheet_name)
+            data = worksheet.get_all_records()
+            return pd.DataFrame(data)
+        except Exception as e:
+            st.warning(f"⚠️ ไม่พบชีท {sheet_name}: {e}")
+            return pd.DataFrame()
 
-# —————————————————————————————————————————
-# 3. แสดงตารางงาน พร้อมปุ่ม View Matching
-# —————————————————————————————————————————
-st.write("Select a job to view its matching results:")
+    df_post = load_sheet("post_job")
+    df_find = load_sheet("find_job")
 
-for idx, job in jobs_df.iterrows():
-    st.markdown(f"---\n**Job #{idx+1}**: {job.job_type} on {job.job_date.date()}")
-    cols = st.columns([3,1])
-    with cols[0]:
-        st.write(f"- **Detail:** {job.get('job_detail', '-')}")
-        st.write(f"- **Address:** {job.job_address or job.province+'/'+job.district+'/'+job.subdistrict}")
-        st.write(f"- **Salary:** {job.start_salary} – {job.range_salary}")
-    with cols[1]:
-        # เมื่อกดจะไปหน้า result_matching พร้อมส่ง job_idx
-        if st.button("View Matching", key=f"view_{idx}"):
-            st.experimental_set_query_params(page="result_matching", job_idx=idx)
-            st.experimental_rerun()
+    # ✅ Tabs: Post Job / Find Job
+    tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
-# ถ้าไม่มีงานเลย
-if jobs_df.empty:
-    st.info("You have not posted any job yet.")
+    with tab1:
+        st.subheader("📌 รายการโพสต์งาน")
+        if df_post.empty:
+            st.info("ยังไม่มีข้อมูลการโพสต์งาน")
+        else:
+            # Loop แสดงแต่ละงาน พร้อมปุ่ม View Matching
+            for idx, row in df_post.iterrows():
+                st.markdown("---")
+                st.markdown(f"**Job #{idx+1}**")
+                cols = st.columns([4,1])
+                with cols[0]:
+                    st.write(f"- **Email:** {row['email']}")
+                    st.write(f"- **Job Type:** {row.get('job_type','')}")
+                    st.write(f"- **Detail:** {row.get('job_detail', '')}")
+                    st.write(f"- **Date:** {row.get('job_date','')} {row.get('start_time','')}-{row.get('end_time','')}")
+                    st.write(f"- **Location:** {row.get('province','')}/{row.get('district','')}/{row.get('subdistrict','')}")
+                    st.write(f"- **Salary:** {row.get('start_salary','')}–{row.get('range_salary','')}")
+                with cols[1]:
+                    if st.button("View Matching", key=f"view_{idx}"):
+                        # ส่งพารามิเตอร์ job_idx ไปยังหน้า result_matching
+                        st.experimental_set_query_params(page="result_matching", job_idx=idx)
+                        st.experimental_rerun()
 
-# —————————————————————————————————————————
-# 4. ลิงก์กลับหน้า Home
-# —————————————————————————————————————————
+    with tab2:
+        st.subheader("🔍 รายการค้นหางาน")
+        if df_find.empty:
+            st.info("ยังไม่มีข้อมูลการค้นหางาน")
+        else:
+            st.dataframe(df_find, use_container_width=True)
+
+except Exception as e:
+    st.error(f"❌ ไม่สามารถโหลดข้อมูลจาก Google Sheets: {e}")
+
+# ลิงก์กลับหน้า Home
 st.markdown("---")
-if st.button("🏠 Go to Homepage"):
-    st.experimental_set_query_params(page="home")
-    st.experimental_rerun()
+st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
