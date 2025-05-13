@@ -1,3 +1,5 @@
+# pages/list_job.py
+
 import streamlit as st
 import pandas as pd
 import gspread
@@ -18,14 +20,15 @@ else:
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# --- Robust loader ---
-def load_df(name: str) -> pd.DataFrame:
+# --- Robust loader using get_all_values() ---
+def load_df(sheet_name: str) -> pd.DataFrame:
     try:
-        ws   = sh.worksheet(name)
+        ws   = sh.worksheet(sheet_name)
         vals = ws.get_all_values()
         header = vals[0]
         data   = vals[1:]
         df     = pd.DataFrame(data, columns=header)
+        # normalize column names
         df.columns = (
             df.columns
               .str.strip()
@@ -34,7 +37,7 @@ def load_df(name: str) -> pd.DataFrame:
         )
         return df
     except Exception as e:
-        st.warning(f"⚠️ ไม่พบชีท `{name}`: {e}")
+        st.warning(f"⚠️ ไม่พบชีท `{sheet_name}`: {e}")
         return pd.DataFrame()
 
 df_post = load_df("post_job")
@@ -63,7 +66,7 @@ with tab1:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                       ])
-            # salary: try new columns, else old
+            # salary
             sal_min = row.get("start_salary") or ""
             sal_max = row.get("range_salary") or ""
             if sal_min or sal_max:
@@ -71,7 +74,6 @@ with tab1:
             else:
                 salary = row.get("salary","–") or "–"
 
-            # render
             st.markdown(f"""
 - **Email**: {email}
 - **Job Type**: {jtype}
@@ -92,6 +94,7 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
+            # Prepare fields
             email  = row.get("email","–")
             skill  = row.get("skills", row.get("job_detail","–"))
             date   = row.get("job_date","–")
@@ -102,19 +105,17 @@ with tab2:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                      ])
-            # expected wage: prefer salary column
-            exp_wage = row.get("salary") or ""
-            if not exp_wage:
-                # or from range_salary
-                exp_wage = row.get("start_salary") or ""
-            exp_wage = exp_wage or "–"
+            # Available wage fields
+            sal_min = row.get("start_salary") or "–"
+            sal_max = row.get("range_salary") or "–"
 
             st.markdown(f"""
 - **Email**: {email}
 - **Skill**: {skill}
 - **Available**: {date} {start}–{end}
 - **Location**: {addr}
-- **Expected Wage**: {exp_wage}
+- **Start Salary**: {sal_min}
+- **Range Salary**: {sal_max}
 """)
             if st.button("View Matching", key=f"view_find_{idx}"):
                 st.experimental_set_query_params(page="result_matching", seeker_idx=idx)
