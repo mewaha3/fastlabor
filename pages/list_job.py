@@ -91,10 +91,8 @@ with tab1:
 - **Salary**: {min_sal} – {max_sal}
 """)
 
-            # Link-button to Result Matching, passing job_idx via query string
-            href = f"/?page=result_matching&job_idx={idx}"
-            st.markdown(f'<a href="{href}" class="link-button">🔍 View Matching</a>',
-                        unsafe_allow_html=True)
+            st.markdown("---")
+            st.page_link("pages/Result Matching.py", label="🔍 View Matching ")
 
 with tab2:
     st.subheader("🔍 รายการค้นหางาน")
@@ -123,10 +121,9 @@ with tab2:
 - **Start Salary**: {min_sal}
 - **Range Salary**: {max_sal}
 """)
+            st.markdown("---")
+            st.page_link("pages/Result Matching.py", label="🔍 View Matching ")
 
-            href = f"/?page=result_matching&seeker_idx={idx}"
-            st.markdown(f'<a href="{href}" class="link-button">🔍 View Matching</a>',
-                        unsafe_allow_html=True)
 
 # 7. Back to Homepage
 st.markdown("---")
