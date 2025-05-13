@@ -5,3 +5,4 @@ google-auth-oauthlib
 google-auth-httplib2
 pandas
 streamlit
+geopy>=2.0.0
