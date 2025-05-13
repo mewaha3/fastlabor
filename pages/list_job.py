@@ -1,17 +1,20 @@
-# pages/list_job.py
-
 import streamlit as st
 import pandas as pd
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1. ต้องเรียก set_page_config เป็นคำสั่งแรกสุด
+# 1. Set page config first
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
+
+# 2. Auth guard (assuming you’ve set st.session_state["logged_in"] elsewhere)
+if not st.session_state.get("logged_in", False):
+    st.experimental_set_query_params(page="login")
+    st.stop()
 
 st.title("📄 My Jobs")
 
-# 2. Auth & connect to Google Sheets
+# 3. Connect to Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -22,7 +25,7 @@ else:
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# 3. Loader helper
+# 4. Loader helper
 def load_df(sheet_name: str) -> pd.DataFrame:
     ws   = sh.worksheet(sheet_name)
     vals = ws.get_all_values()
@@ -33,31 +36,13 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# 4. Clean salary columns
+# 5. Clean salary columns
 for df in (df_post, df_find):
     for col in ("start_salary", "range_salary"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace({"": None})
 
-# 5. Define simple CSS for our link-buttons
-st.markdown("""
-<style>
-.link-button {
-  display: inline-block;
-  background: #f0f2f6;
-  color: #0e1117;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  text-decoration: none;
-  border: 1px solid #ccc;
-}
-.link-button:hover {
-  background: #e1e3e8;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# 6. Tabs for Post Job / Find Job
+# 6. Tabs
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -69,18 +54,16 @@ with tab1:
             st.markdown("---")
             st.markdown(f"### Job #{idx+1}")
 
-            # Extract fields
             email   = row["email"]
             jtype   = row["job_type"]
-            detail  = row.get("skills", row.get("job_detail","–"))
+            detail  = row.get("skills", row.get("job_detail", "–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
             addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            min_sal = row.get("start_salary") or row.get("salary","–")
-            max_sal = row.get("range_salary") or row.get("salary","–")
+            min_sal = row.get("start_salary") or row.get("salary", "–")
+            max_sal = row.get("range_salary") or row.get("salary", "–")
 
-            # Render Markdown
             st.markdown(f"""
 - **Email**: {email}
 - **Job Type**: {jtype}
@@ -91,8 +74,11 @@ with tab1:
 - **Salary**: {min_sal} – {max_sal}
 """)
 
-            st.markdown("---")
-            st.page_link("pages/Result Matching.py", label="🔍 View Matching ")
+            st.page_link(
+                "pages/result_matching.py",
+                label="🔍 View Matching",
+                params={"job_idx": idx}
+            )
 
 with tab2:
     st.subheader("🔍 รายการค้นหางาน")
@@ -104,7 +90,7 @@ with tab2:
             st.markdown(f"### Find #{idx+1}")
 
             email   = row["email"]
-            skill   = row.get("skills", row.get("job_detail","–"))
+            skill   = row.get("skills", row.get("job_detail", "–"))
             date    = row["job_date"]
             start   = row["start_time"]
             end     = row["end_time"]
@@ -121,10 +107,13 @@ with tab2:
 - **Start Salary**: {min_sal}
 - **Range Salary**: {max_sal}
 """)
-            st.markdown("---")
-            st.page_link("pages/Result Matching.py", label="🔍 View Matching ")
 
+            st.page_link(
+                "pages/result_matching.py",
+                label="🔍 View Matching",
+                params={"seeker_idx": idx}
+            )
 
-# 7. Back to Homepage
+# 7. Back to Home
 st.markdown("---")
 st.page_link("pages/home.py", label="🏠 Go to Homepage")
