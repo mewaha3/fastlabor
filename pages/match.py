@@ -28,11 +28,10 @@ SPREADSHEET_NAME = "fastlabor"
 sh = gc.open(SPREADSHEET_NAME)
 tabs = [ws.title for ws in sh.worksheets()]
 
-# helper: หาแท็บแบบไม่สน case/underscore/space
 def find_tab(key):
-    nk = key.lower().replace(" ", "").replace("_","")
+    norm = key.lower().replace(" ", "").replace("_","")
     for t in tabs:
-        if t.lower().replace(" ", "").replace("_","") == nk:
+        if t.lower().replace(" ", "").replace("_","") == norm:
             return t
     return None
 
@@ -51,8 +50,12 @@ def load_sheet(title):
     if len(vals) < 2:
         return pd.DataFrame()
     df = pd.DataFrame(vals[1:], columns=vals[0])
-    # normalize column names
-    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    df.columns = (
+        df.columns
+          .str.strip()
+          .str.lower()
+          .str.replace(" ", "_")
+    )
     return df
 
 jobs_df    = load_sheet(jobs_tab)
@@ -62,12 +65,13 @@ if jobs_df.empty or seekers_df.empty:
     st.stop()
 
 # —————————————————————————————————————————
-# 5. Convert job_date to datetime & build start_dt/end_dt
+# 5. Parse dates & times
 # —————————————————————————————————————————
-# แปลงคอลัมน์ job_date ให้เป็น Timestamp
+# Convert job_date column to datetime
 jobs_df["job_date"]    = pd.to_datetime(jobs_df["job_date"], errors="coerce")
 seekers_df["job_date"] = pd.to_datetime(seekers_df["job_date"], errors="coerce")
 
+# Helper to combine date+time
 def make_dt(df, date_col, time_col, out_col):
     df[out_col] = pd.to_datetime(
         df[date_col].dt.strftime("%Y-%m-%d") + " " + df[time_col].astype(str),
@@ -82,12 +86,11 @@ make_dt(seekers_df, "job_date",  "end_time",     "avail_end")
 # —————————————————————————————————————————
 # 6. Prepare job_type & wages
 # —————————————————————————————————————————
-# แปลงให้ job_type & salary เป็น string/number
-jobs_df["job_type"]       = jobs_df["job_type"].astype(str).str.strip()
-seekers_df["job_type"]    = seekers_df["job_type"].astype(str).str.strip()
-jobs_df["min_wage"]       = pd.to_numeric(jobs_df.get("start_salary", 0), errors="coerce")
-jobs_df["max_wage"]       = pd.to_numeric(jobs_df.get("range_salary", 0), errors="coerce")
-seekers_df["expected_wage"] = pd.to_numeric(seekers_df.get("salary", 0), errors="coerce")
+jobs_df["job_type"]        = jobs_df["job_type"].astype(str).str.strip()
+seekers_df["job_type"]     = seekers_df["job_type"].astype(str).str.strip()
+jobs_df["min_wage"]        = pd.to_numeric(jobs_df.get("start_salary",0), errors="coerce")
+jobs_df["max_wage"]        = pd.to_numeric(jobs_df.get("range_salary",0), errors="coerce")
+seekers_df["expected_wage"]= pd.to_numeric(seekers_df.get("salary",0), errors="coerce")
 
 # —————————————————————————————————————————
 # 7. Scoring functions
@@ -103,32 +106,35 @@ def location_score(job, seeker):
     return 1.0 if (
         job.province    == seeker.province
         and job.district   == seeker.district
-        and job.subdistrict == seeker.subdistrict
+        and job.subdistrict== seeker.subdistrict
     ) else 0.0
 
 def wage_score(job, seeker):
     return 1.0 if job.min_wage <= seeker.expected_wage <= job.max_wage else 0.0
 
 # —————————————————————————————————————————
-# 8. Compute match scores
+# 8. Compute matches with safe job_id
 # —————————————————————————————————————————
 weights = {"type":0.4, "time":0.2, "loc":0.2, "wage":0.2}
 records = []
 
 for i, job in jobs_df.iterrows():
+    # Prepare a safe job_id prefix
+    if pd.notna(job.start_dt):
+        prefix = job.start_dt.strftime("%Y%m%d_%H%M")
+    else:
+        prefix = f"job{i}"
     for j, seeker in seekers_df.iterrows():
-        s_type = job_type_score(job, seeker)
-        s_time = datetime_score(job, seeker)
-        s_loc  = location_score(job, seeker)
-        s_wage = wage_score(job, seeker)
-        total  = s_type*weights["type"] + s_time*weights["time"] + s_loc*weights["loc"] + s_wage*weights["wage"]
+        s1 = job_type_score(job, seeker)
+        s2 = datetime_score(job, seeker)
+        s3 = location_score(job, seeker)
+        s4 = wage_score(job, seeker)
+        total = s1*weights["type"] + s2*weights["time"] + s3*weights["loc"] + s4*weights["wage"]
         if total > 0:
-            # ใช้ start_dt ในการสร้าง job_id
-            jid = job.start_dt.strftime("%Y%m%d_%H%M") + f"_{i}"
             records.append({
                 "job_idx":   i,
                 "seek_idx":  j,
-                "job_id":    jid,
+                "job_id":    f"{prefix}_{i}",
                 "seeker_id": seeker.email,
                 "score":     total
             })
@@ -138,22 +144,31 @@ if matches.empty:
     st.info("⚠️ ยังไม่มีคู่ที่ match ได้")
     st.stop()
 
-top3 = matches.sort_values(["job_idx","score"], ascending=[True,False])\
-               .groupby("job_idx")\
-               .head(3)
+# Top-3 per job
+top3 = (
+    matches
+    .sort_values(["job_idx","score"], ascending=[True, False])
+    .groupby("job_idx")
+    .head(3)
+)
 
 # —————————————————————————————————————————
 # 9. Display results
 # —————————————————————————————————————————
 for _, grp in top3.groupby("job_idx"):
     job = jobs_df.loc[grp.job_idx.iloc[0]]
-    st.subheader(f"📄 Job: {job.start_dt.strftime('%Y-%m-%d %H:%M')} ({job.job_type})")
+    dt_label = job.start_dt.strftime("%Y-%m-%d %H:%M") if pd.notna(job.start_dt) else "unknown"
+    st.subheader(f"📄 Job: {dt_label} ({job.job_type})")
     for _, r in grp.iterrows():
         sk = seekers_df.loc[r.seek_idx]
+        avail = (
+            f"{sk.avail_start.strftime('%H:%M')}"
+            if pd.notna(sk.avail_start) else "?"
+        )
         st.markdown(
             f"- **{sk.email}** (Score {r.score:.2f})  \n"
             f"  • Job Type: {sk.job_type}  \n"
-            f"  • Availability: {sk.avail_start.strftime('%H:%M')}–{sk.avail_end.strftime('%H:%M')}  \n"
+            f"  • Availability: {avail}–{sk.avail_end.strftime('%H:%M') if pd.notna(sk.avail_end) else '?'}  \n"
             f"  • Location: {sk.province}/{sk.district}/{sk.subdistrict}  \n"
             f"  • Expected Wage: {sk.expected_wage}"
         )
