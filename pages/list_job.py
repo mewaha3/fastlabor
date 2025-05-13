@@ -9,7 +9,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 st.set_page_config(page_title="My Jobs | FAST LABOR", layout="wide")
 st.title("📄 My Jobs")
 
-# --- Auth & connect ---
+# —————————————————————————————————————————
+# 1. Authenticate & connect to Google Sheets
+# —————————————————————————————————————————
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 if "gcp" in st.secrets:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -20,7 +22,9 @@ else:
 client = gspread.authorize(creds)
 sh     = client.open("fastlabor")
 
-# --- Robust loader using get_all_values() ---
+# —————————————————————————————————————————
+# 2. Robust loader using get_all_values()
+# —————————————————————————————————————————
 def load_df(sheet_name: str) -> pd.DataFrame:
     try:
         ws   = sh.worksheet(sheet_name)
@@ -42,7 +46,9 @@ def load_df(sheet_name: str) -> pd.DataFrame:
 df_post = load_df("post_job")
 df_find = load_df("find_job")
 
-# --- Tabs: Post Job / Find Job ---
+# —————————————————————————————————————————
+# 3. Tabs: Post Job / Find Job
+# —————————————————————————————————————————
 tab1, tab2 = st.tabs(["📌 Post Job", "🔍 Find Job"])
 
 with tab1:
@@ -64,6 +70,7 @@ with tab1:
                         row.get("district","–"),
                         row.get("subdistrict","–")
                       ])
+            # Salary: new or old columns
             sal_min = row.get("start_salary") or ""
             sal_max = row.get("range_salary") or ""
             if sal_min or sal_max:
@@ -91,17 +98,17 @@ with tab2:
         for idx, row in df_find.iterrows():
             st.markdown("---")
             st.markdown(f"### Find #{idx+1}")
-            email  = row.get("email","–")
-            skill  = row.get("skills", row.get("job_detail","–"))
-            date   = row.get("job_date","–")
-            start  = row.get("start_time","–")
-            end    = row.get("end_time","–")
-            addr   = "/".join([
-                        row.get("province","–"),
-                        row.get("district","–"),
-                        row.get("subdistrict","–")
-                     ])
-            # show both the availability and the salary range
+            email   = row.get("email","–")
+            skill   = row.get("skills", row.get("job_detail","–"))
+            date    = row.get("job_date","–")
+            start   = row.get("start_time","–")
+            end     = row.get("end_time","–")
+            addr    = "/".join([
+                         row.get("province","–"),
+                         row.get("district","–"),
+                         row.get("subdistrict","–")
+                      ])
+            # Start & range salary
             sal_min = row.get("start_salary") or "–"
             sal_max = row.get("range_salary") or "–"
 
