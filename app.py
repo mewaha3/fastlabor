@@ -97,3 +97,5 @@ if login_button:
         st.switch_page("pages/home.py")
     else:
         st.error("❌ Invalid email or password. Please try again.")
+st.sidebar.button("🔍 Matching", on_click=st.experimental_set_query_params, args=(dict(page="match"),))
+
