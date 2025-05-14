@@ -1,158 +1,150 @@
 import streamlit as st
+# Must be first
+st.set_page_config(page_title="Post Job", page_icon="📌", layout="centered")
+
 import gspread
 import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
+import uuid
 
-# ✅ โหลดข้อมูลจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์
+# Load location data
 @st.cache_data
 def load_location_data():
-    url_province = "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province.json"
-    url_district = "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_amphure.json"
-    url_subdistrict = "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_tambon.json"
-
-    provinces = pd.read_json(url_province)
-    districts = pd.read_json(url_district)
-    subdistricts = pd.read_json(url_subdistrict)
-
+    provinces = pd.read_json(
+        "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province.json"
+    )
+    districts = pd.read_json(
+        "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_amphure.json"
+    )
+    subdistricts = pd.read_json(
+        "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_tambon.json"
+    )
     return provinces, districts, subdistricts
 
 provinces, districts, subdistricts = load_location_data()
 
-# ✅ ตั้งค่า Google Sheets API
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# Initialize session_state defaults
+for key, default in {
+    "province": "Select Province",
+    "district": "Select District",
+    "subdistrict": "Select Subdistrict",
+    "zip_code": ""
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
+# Connect to Google Sheets
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 try:
-    if "gcp" in st.secrets and "credentials" in st.secrets["gcp"]:
-        credentials_dict = json.loads(st.secrets["gcp"]["credentials"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+    if "gcp" in st.secrets:
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(
+            json.loads(st.secrets.gcp.credentials), scope
+        )
     else:
         creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-
     client = gspread.authorize(creds)
     spreadsheet = client.open("fastlabor")
-
-    # ✅ ตรวจสอบว่ามี Sheet `post_job` หรือยัง ถ้าไม่มีให้สร้างใหม่
-    try:
-        sheet = spreadsheet.worksheet("post_job")
-    except gspread.exceptions.WorksheetNotFound:
-        sheet = spreadsheet.add_worksheet(title="post_job", rows="1000", cols="12")
-
-    # ✅ เพิ่ม Header ใน Sheet `post_job` ถ้ายังไม่มี
-    expected_headers = ["email", "job_type", "job_detail", "salary", "job_date", "start_time", "end_time",
-                        "job_address", "province", "district", "subdistrict", "zip_code"]
-
-    existing_headers = sheet.row_values(1)
-    if not existing_headers:
-        sheet.append_row(expected_headers)
-
+    sheet = spreadsheet.worksheet("post_job")
 except Exception as e:
-    st.error(f"❌ ไม่สามารถเชื่อมต่อกับ Google Sheets: {e}")
+    st.error(f"❌ Cannot connect to Google Sheets: {e}")
     st.stop()
 
-# ✅ ตรวจสอบว่า user ล็อกอินอยู่หรือไม่
-if "email" not in st.session_state or not st.session_state["email"]:
-    st.warning("🔒 กรุณาล็อกอินก่อนโพสต์งาน")
+# Check login
+if not st.session_state.get("email"):
+    st.warning("🔒 Please log in before posting a job.")
     st.stop()
 
-# ✅ ตั้งค่า Session State สำหรับ Address
-if "selected_province" not in st.session_state:
-    st.session_state.selected_province = "Select Province"
-if "selected_district" not in st.session_state:
-    st.session_state.selected_district = "Select District"
-if "selected_subdistrict" not in st.session_state:
-    st.session_state.selected_subdistrict = "Select Subdistrict"
-if "zip_code" not in st.session_state:
-    st.session_state.zip_code = ""
-
-# ✅ ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="Post Job", page_icon="📌", layout="centered")
-
-# ✅ ปุ่ม Profile ด้านบน
+# UI Header
 st.page_link("pages/profile.py", label="Profile", icon="👤")
-
-st.title("Post Job")
-st.write("For generating a list of employees who match the job.")
+st.title("Post Job 📌")
 st.image("image.png", width=400)
 
-# ✅ ฟอร์มสำหรับเพิ่มงานใหม่
-with st.form("job_form"):
-    job_type = st.text_input("Job Type *", placeholder="Enter job type")
-    job_detail = st.text_area("Job Detail *", placeholder="Enter job details")
-    salary = st.text_input("Wages *", placeholder="Enter salary range")
+# Job Inputs
+st.markdown("### Job Information")
+job_type = st.text_input("Job Type *")
+job_detail = st.text_area("Job Detail *")
+salary = st.text_input("Wages *")
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Start Date *")
+with col2:
+    end_date = st.date_input("End Date *")
+start_time = st.time_input("Start Time *")
+end_time = st.time_input("End Time *")
 
-    # ✅ เปลี่ยนเป็น Start Date และ End Date
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start Date *")
-    with col2:
-        end_date = st.date_input("End Date *")
+# Address outside a frame
+st.markdown("### Address Information")
+job_address = st.text_area("Address (House No, Road, Soi.) *")
 
-    start_time = st.time_input("Start Time *")
-    end_time = st.time_input("End Time *")
+# Location cascade
+st.markdown("### Location Details")
+province_list = ["Select Province"] + provinces["name_th"].tolist()
+province = st.selectbox("Province *", province_list, index=province_list.index(st.session_state.province))
+if province != st.session_state.province:
+    st.session_state.province = province
+    st.session_state.district = "Select District"
+    st.session_state.subdistrict = "Select Subdistrict"
+    st.session_state.zip_code = ""
 
-    st.markdown("#### Address Information")
-    job_address = st.text_area("Address (House Number, Road, Soi.) *", placeholder="Enter your address")
+# District
+district_list = ["Select District"]
+if st.session_state.province != "Select Province":
+    pid = provinces.loc[provinces.name_th == st.session_state.province, "id"].iloc[0]
+    district_list += districts.loc[districts.province_id == pid, "name_th"].tolist()
+district = st.selectbox("District *", district_list, index=district_list.index(st.session_state.district) if st.session_state.district in district_list else 0)
+if district != st.session_state.district:
+    st.session_state.district = district
+    st.session_state.subdistrict = "Select Subdistrict"
+    st.session_state.zip_code = ""
 
-    province_names = ["Select Province"] + provinces["name_th"].tolist()
-    selected_province = st.selectbox("Province *", province_names, index=province_names.index(st.session_state.selected_province) if st.session_state.selected_province in province_names else 0)
+# Subdistrict and zip
+sub_list = ["Select Subdistrict"]
+zip_map = {}
+if st.session_state.district != "Select District":
+    did = districts.loc[districts.name_th == st.session_state.district, "id"].iloc[0]
+    subs = subdistricts[subdistricts.amphure_id == did]
+    sub_list += subs["name_th"].tolist()
+    zip_map = subs.set_index("name_th")["zip_code"].to_dict()
+subdistrict = st.selectbox(
+    "Subdistrict *", sub_list,
+    index=sub_list.index(st.session_state.subdistrict) if st.session_state.subdistrict in sub_list else 0
+)
+if subdistrict != st.session_state.subdistrict:
+    st.session_state.subdistrict = subdistrict
+    st.session_state.zip_code = zip_map.get(subdistrict, "")
 
-    if selected_province != st.session_state.selected_province:
-        st.session_state.selected_province = selected_province
-        st.session_state.selected_district = "Select District"
-        st.session_state.selected_subdistrict = "Select Subdistrict"
-        st.session_state.zip_code = ""
-        st.experimental_rerun()
+st.text_input("Zip Code *", st.session_state.zip_code, disabled=True)
 
-    filtered_districts = ["Select District"]
-    if selected_province != "Select Province":
-        province_id = provinces.loc[provinces["name_th"] == selected_province, "id"].values
-        if len(province_id) > 0:
-            province_id = province_id[0]
-            filtered_districts += districts.loc[districts["province_id"] == province_id, "name_th"].tolist()
+# Submit button at bottom
+got_submit = st.button("Post Job")
 
-    selected_district = st.selectbox("District *", filtered_districts, index=filtered_districts.index(st.session_state.selected_district) if st.session_state.selected_district in filtered_districts else 0)
-
-    if selected_district != st.session_state.selected_district:
-        st.session_state.selected_district = selected_district
-        st.session_state.selected_subdistrict = "Select Subdistrict"
-        st.session_state.zip_code = ""
-        st.experimental_rerun()
-
-    filtered_subdistricts = ["Select Subdistrict"]
-    zip_codes = {}
-    if selected_district != "Select District":
-        district_id = districts.loc[districts["name_th"] == selected_district, "id"].values
-        if len(district_id) > 0:
-            district_id = district_id[0]
-            subdistrict_list = subdistricts[subdistricts["amphure_id"] == district_id]
-            filtered_subdistricts += subdistrict_list["name_th"].tolist()
-            zip_codes = subdistrict_list.set_index("name_th")["zip_code"].to_dict()
-
-    selected_subdistrict = st.selectbox("Subdistrict *", filtered_subdistricts, index=filtered_subdistricts.index(st.session_state.selected_subdistrict) if st.session_state.selected_subdistrict in filtered_subdistricts else 0)
-
-    if selected_subdistrict != st.session_state.selected_subdistrict:
-        st.session_state.selected_subdistrict = selected_subdistrict
-        st.session_state.zip_code = zip_codes.get(selected_subdistrict, "")
-        st.experimental_rerun()
-
-    zip_code = st.text_input("Zip Code *", st.session_state.zip_code, disabled=True)
-
-    submit_button = st.form_submit_button("Match Employee")
-
-# ✅ ถ้ากดปุ่ม ให้บันทึกข้อมูลงานลง Google Sheets
-if submit_button:
+if got_submit:
     try:
-        email = st.session_state["email"]
+        profile_ws = spreadsheet.sheet1
+        records = profile_ws.get_all_records()
+        first_name = last_name = gender = ""
+        for r in records:
+            if r.get("email") == st.session_state.email:
+                first_name = r.get("first_name", "")
+                last_name = r.get("last_name", "")
+                gender = r.get("gender", "")
+                break
+        existing = sheet.get_all_values()
+        postjob_id = f"PJ{len(existing)}"
         job_date = f"{start_date} to {end_date}"
         sheet.append_row([
-            email, job_type, job_detail, salary, job_date, str(start_time), str(end_time),
-            job_address, selected_province, selected_district, selected_subdistrict, st.session_state.zip_code
+            postjob_id, first_name, last_name,gender, st.session_state.email,
+            job_type, job_detail, salary, job_date,
+            str(start_time), str(end_time), job_address,
+            st.session_state.province, st.session_state.district,
+            st.session_state.subdistrict, st.session_state.zip_code
         ])
-        st.success("✅ Job posted successfully!")
+        st.success(f"✅ Job posted successfully with ID: {postjob_id}")
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ✅ ปุ่มกลับหน้า Home
-st.page_link("pages/home.py", label="Go to Homepage", icon="🏠")
+st.page_link("pages/home.py", label="Home", icon="🏠")
+
+# List Job link
 st.page_link("pages/list_job.py", label="List Job", icon="📄")
