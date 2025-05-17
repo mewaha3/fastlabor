@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import gspread
 import json
+import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from matching import encode_job_df, encode_worker_df, recommend_seekers
 
@@ -20,37 +20,48 @@ st.markdown("""
 
 st.title("📊 Status Matching")
 
-# 2) Get job_id from session
+# 2) Grab job_id from session
 job_id = st.session_state.get("status_job_id")
 if not job_id:
     st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
     st.stop()
 
 # 3) Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
+scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    json.loads(st.secrets["gcp"]["credentials"]), scope
+)
 gc = gspread.authorize(creds)
+sh = gc.open("fastlabor")
 
 # 4) Load raw data
-raw_jobs    = pd.DataFrame(gc.open("fastlabor").worksheet("post_job").get_all_records())
-raw_seekers = pd.DataFrame(gc.open("fastlabor").worksheet("find_job").get_all_records())
-status_df   = pd.DataFrame(gc.open("fastlabor").worksheet("match_results").get_all_records())
-status_df["findjob_id"] = status_df["findjob_id"].astype(str)
+raw_jobs    = pd.DataFrame(sh.worksheet("post_job").get_all_records())
+raw_seekers = pd.DataFrame(sh.worksheet("find_job").get_all_records())
+status_df   = pd.DataFrame(sh.worksheet("match_results").get_all_records())
 
-# 5) Encode & compute top-5 recommendations
+# normalize types
+raw_seekers["find_job_id"] = raw_seekers["findjob_id"].astype(str)
+status_df["find_job_id"]   = status_df["findjob_id"].astype(str)
+status_df["job_id"]        = status_df["job_id"].astype(str)
+
+# 5) Encode & compute Top-5 seekers for this job
 jobs_enc    = encode_job_df(raw_jobs)
 seekers_enc = encode_worker_df(raw_seekers)
-idxs = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
-if not idxs:
-    st.error(f"❌ ไม่พบ Job ID = {job_id}")
+# find the encoded row of this job
+idx_list = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
+if not idx_list:
+    st.error(f"❌ ไม่พบ Job ID = {job_id} ในระบบ")
     st.stop()
-job_enc = jobs_enc.loc[idxs[0]]
+job_enc = jobs_enc.loc[idx_list[0]]
 top5 = recommend_seekers(job_enc, seekers_enc, n=5)
 
-# 6) Helpers
-def get_status_color(status: str) -> str:
-    s = (status or "").lower()
-    return "green" if s=="accepted" else "orange" if s=="on queue" else "red" if s=="declined" else "gray"
+# helper functions
+def get_status_color(s: str) -> str:
+    s = (s or "").lower()
+    return "green"  if s=="accepted"  else \
+           "orange" if s=="on queue"  else \
+           "red"    if s=="declined"   else \
+           "gray"
 
 def avg_salary(raw: pd.Series) -> str:
     try:
@@ -60,25 +71,28 @@ def avg_salary(raw: pd.Series) -> str:
     except:
         return "-"
 
-# 7) Display Top-5 with status and details
+# 6) Display
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
-for rank, rec in enumerate(top5.itertuples(), start=1):
-    # ใช้ rec.Index เป็นดัชนีแถวใน raw_seekers
-    seeker_raw = raw_seekers.iloc[rec.Index]
-    find_id    = str(seeker_raw["findjob_id"])
-    name       = f"{seeker_raw.first_name} {seeker_raw.last_name}".strip() or "-"
-    gender     = seeker_raw.gender or "-"
-    jtype      = rec.job_type or "-"
-    date       = seeker_raw.job_date or "-"
-    time       = f"{seeker_raw.start_time} – {seeker_raw.end_time}"
-    loc        = f"{seeker_raw.province}/{seeker_raw.district}/{seeker_raw.subdistrict}"
-    sal        = avg_salary(seeker_raw)
-    ai_score   = rec.ai_score
+for rank, rec in enumerate(top5.itertuples(index=False), start=1):
+    # use rec.find_job_id to locate raw seeker and status
+    fid = str(getattr(rec, "find_job_id", ""))  
+    seeker = raw_seekers[raw_seekers["find_job_id"] == fid].iloc[0]
+    name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
+    gender = seeker.gender or "-"
+    jtype  = rec.job_type or "-"
+    date   = seeker.job_date or "-"
+    time   = f"{seeker.start_time} – {seeker.end_time}"
+    loc    = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
+    sal    = avg_salary(seeker)
+    ai     = rec.ai_score
 
     # lookup status
-    stat_row = status_df[status_df["findjob_id"] == find_id]
-    status   = stat_row.iloc[0]["status"] if not stat_row.empty else "on queue"
-    color    = get_status_color(status)
+    sr = status_df[
+        (status_df["job_id"] == job_id) &
+        (status_df["find_job_id"] == fid)
+    ]
+    status = sr.iloc[0]["status"] if not sr.empty else "on queue"
+    color  = get_status_color(status)
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
@@ -88,7 +102,7 @@ for rank, rec in enumerate(top5.itertuples(), start=1):
     st.markdown(f"- **Time:** {time}")
     st.markdown(f"- **Location:** {loc}")
     st.markdown(f"- **Salary:** {sal}")
-    st.markdown(f"- **AI Score:** {ai_score:.2f}")
+    st.markdown(f"- **AI Score:** {ai:.2f}")
     st.markdown(
         f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>"
         f"{status}"
@@ -96,22 +110,22 @@ for rank, rec in enumerate(top5.itertuples(), start=1):
         unsafe_allow_html=True
     )
 
-    # ถ้า accepted ให้ปุ่มดูรายละเอียดงาน
-    if status.lower() == "accepted":
-        if st.button("ดูรายละเอียดงาน", key=f"detail_{find_id}"):
+    # if accepted, show detail button
+    if status.lower()=="accepted":
+        if st.button("ดูรายละเอียดงาน", key=f"detail_{fid}"):
             job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
-                "findjob_id": find_id,
-                "first_name": seeker_raw.first_name,
-                "last_name":  seeker_raw.last_name,
-                "email":       seeker_raw.email,
-                "gender":      seeker_raw.gender
+                "findjob_id": fid,
+                "first_name": seeker.first_name,
+                "last_name":  seeker.last_name,
+                "email":       seeker.email,
+                "gender":      seeker.gender
             }
             st.switch_page("pages/job_detail.py")
 
     st.markdown("---")
 
-# 8) Back button
+# 7) Back to My Jobs
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
