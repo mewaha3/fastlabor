@@ -145,10 +145,12 @@ def update_done(status_label: str):
 with col1:
     if st.button("✅ Job Done นายจ้าง"):
         update_done("Employer")
+        st.switch_page("pages/review_employee.py")
+
 with col2:
     if st.button("🧑‍🔧 Job Done ลูกจ้าง"):
         update_done("Employee")
-
+        st.switch_page("pages/review_employer.py")
 st.markdown("---")
 st.page_link("pages/payment.py", label="💳 ชำระเงิน")
 if st.button("🔙 กลับหน้า My Jobs"):
