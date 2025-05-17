@@ -86,7 +86,6 @@ for _, row in my_df.iterrows():
     st.write(f"- วันเวลา: {row.get('job_date','-')} | {row.get('start_time','-')}–{row.get('end_time','-')}")
     st.write(f"- สถานที่: {row.get('province','-')}/{row.get('district','-')}/{row.get('subdistrict','-')}")
     st.write(f"- ค่าจ้าง: {row.get('job_salary','-')} THB/day")
-    st.write(f"- สถานะปัจจุบัน: **{row.get('status','-')}**")
 
     col1, col2 = st.columns(2)
     with col1:
