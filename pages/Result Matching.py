@@ -19,7 +19,7 @@ if selected_job_id is None and active_seeker_idx is None:
     st.stop()
 
 # -----------------------------------------------------------------
-# Helper: load sheet to df
+# Helper: load any sheet into DataFrame
 # -----------------------------------------------------------------
 def _sheet_df(name: str) -> pd.DataFrame:
     SCOPE = [
@@ -35,6 +35,22 @@ def _sheet_df(name: str) -> pd.DataFrame:
     df   = pd.DataFrame(vals[1:], columns=vals[0])
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
+
+# -----------------------------------------------------------------
+# Helper: prepare match_results sheet
+# -----------------------------------------------------------------
+def _get_match_ws():
+    SCOPE = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        json.loads(st.secrets["gcp"]["credentials"]), SCOPE
+    )
+    gc = gspread.authorize(creds)
+    ws = gc.open("fastlabor").worksheet("match_results")
+    headers = ws.row_values(1)
+    return ws, [h.lower().strip() for h in headers]
 
 # -----------------------------------------------------------------
 # Load & encode data
@@ -61,26 +77,22 @@ def avg_salary(row: pd.Series) -> str:
 # 4) Employer view: show Top-5 seekers & choose priority
 # -----------------------------------------------------------------
 if selected_job_id is not None:
-    # หา job row
+    # locate the selected job
     job_rows = jobs_df[jobs_df["job_id"] == selected_job_id]
     if job_rows.empty:
         st.error(f"ไม่พบงานที่มี Job ID = {selected_job_id}")
         st.stop()
     job_row_encoded = job_rows.iloc[0]
 
-    # เรียกมาเยอะก่อน แล้วค่อยกรองไม่ซ้ำ
+    # get many then filter unique to 5
     original = recommend_seekers(job_row_encoded, seekers_df, k=50, n=50)
-
-    unique = []
-    used_emails = set()
-    # เก็บไม่ซ้ำกันจนได้ 5 รายการ
+    unique, seen = [], set()
     for rec in original.itertuples(index=False):
-        if rec.email not in used_emails:
+        if rec.email not in seen:
             unique.append(rec)
-            used_emails.add(rec.email)
+            seen.add(rec.email)
         if len(unique) == 5:
             break
-
     top5 = pd.DataFrame(unique)
 
     raw_seek = _sheet_df("find_job")
@@ -113,16 +125,13 @@ if selected_job_id is not None:
                 "Priority", [1,2,3,4,5], index=rank-1, key=f"prio_{rank}"
             )
 
-    # ปุ่มบันทึกผล
     if st.button("✅ Confirm Matches", use_container_width=True):
         ws, headers = _get_match_ws()
-        headers_in_sheet = [h.lower().strip() for h in headers]
         match_data = []
-
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
             seeker   = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
             job      = raw_jobs[raw_jobs.job_id == selected_job_id].iloc[0]
-            job_sal  = job.get("salary","")
+            job_sal  = job.get("salary", "")
             row = seeker.copy()
             row["priority"]    = priorities.get(rank,1)
             row["status"]      = "on queue"
@@ -134,13 +143,12 @@ if selected_job_id is not None:
         if match_data:
             df_up = pd.DataFrame(match_data)
             cols  = [c.lower().strip() for c in df_up.columns]
-            exist = [c for c in cols if c in headers_in_sheet]
+            exist = [c for c in cols if c in headers]
             df_up = df_up[df_up.columns[df_up.columns.str.lower().str.strip().isin(exist)]]
-            df_up = df_up[sorted(df_up.columns, key=lambda c: headers_in_sheet.index(c.lower().strip()))]
-
+            df_up = df_up[sorted(df_up.columns, key=lambda c: headers.index(c.lower().strip()))]
             start_row = len(ws.get_all_values()) + 1
             data = df_up.values.tolist()
-            end_col = chr(ord("A") + len(df_up.columns)-1)
+            end_col = chr(ord("A") + df_up.shape[1] - 1)
             ws.update(f"A{start_row}:{end_col}{start_row+len(data)-1}", data)
             st.success("🎉 บันทึกผลการจับคู่เรียบร้อยแล้ว!")
         else:
@@ -151,24 +159,22 @@ if selected_job_id is not None:
 # -----------------------------------------------------------------
 elif active_seeker_idx is not None:
     seeker_row = seekers_df.iloc[active_seeker_idx]
-    top5 = recommend(seeker_row, jobs_df, k=50, n=50)
+    original = recommend(seeker_row, jobs_df, k=50, n=50)
+    unique, seen = [], set()
+    for rec in original.itertuples(index=False):
+        if rec.job_id not in seen:
+            unique.append(rec)
+            seen.add(rec.job_id)
+        if len(unique) == 5:
+            break
+    top5 = pd.DataFrame(unique)
 
-    # แสดง Top5 เช่นเดียวกัน
     raw_jobs = _sheet_df("post_job")
     st.subheader("📋 งานที่ AI แนะนำสำหรับคุณ")
 
-    unique = []
-    used_jobs = set()
-    for rec in top5.itertuples(index=False):
-        if rec.job_id not in used_jobs:
-            unique.append(rec)
-            used_jobs.add(rec.job_id)
-        if len(unique) == 5:
-            break
-
-    for rank, rec in enumerate(unique, start=1):
+    for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
-        job = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
+        job  = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
         date = job.job_date or "-"
         time = f"{job.start_time} – {job.end_time}"
         loc  = f"{job.province}/{job.district}/{job.subdistrict}"
