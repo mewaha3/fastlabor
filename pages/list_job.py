@@ -117,7 +117,6 @@ with tab2:
             )
 
 # 7) Back to Home
-st.divider()
 st.switch_page("pages/home.py")
 
 
