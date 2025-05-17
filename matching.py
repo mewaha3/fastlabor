@@ -36,10 +36,10 @@ _TEXT_COL_WORKERS = [
     "end_time",
 ]
 
+
 def _encode_texts(texts: list[str]) -> np.ndarray:
     return _EMBED_MODEL.encode(
-        [t if isinstance(t, str) else "" for t in texts],
-        show_progress_bar=False
+        [t if isinstance(t, str) else "" for t in texts], show_progress_bar=False
     )
 
 
@@ -50,7 +50,7 @@ def encode_job_df(jobs_df: pd.DataFrame) -> pd.DataFrame:
     df["__text"] = df[_TEXT_COL_JOBS].agg(" ".join, axis=1)
     df["vec"] = list(_encode_texts(df["__text"].tolist()))
     df.drop(columns="__text", inplace=True)
-    if {"job_date", "start_time", "end_time"}.issubset(df.columns):
+    if {"job_date","start_time","end_time"}.issubset(df.columns):
         df["job_date"] = pd.to_datetime(df["job_date"], errors="coerce").dt.date
         df["start_dt"] = pd.to_datetime(
             df["job_date"].astype(str) + " " + df["start_time"], errors="coerce"
@@ -68,7 +68,7 @@ def encode_worker_df(workers_df: pd.DataFrame) -> pd.DataFrame:
     df["__text"] = df[_TEXT_COL_WORKERS].agg(" ".join, axis=1)
     df["vec"] = list(_encode_texts(df["__text"].tolist()))
     df.drop(columns="__text", inplace=True)
-    if {"job_date", "start_time", "end_time"}.issubset(df.columns):
+    if {"job_date","start_time","end_time"}.issubset(df.columns):
         df["job_date"] = pd.to_datetime(df["job_date"], errors="coerce").dt.date
         df["avail_start"] = pd.to_datetime(
             df["job_date"].astype(str) + " " + df["start_time"], errors="coerce"
@@ -92,30 +92,29 @@ def _build_faiss_index(mat: np.ndarray):
 # 4) Feature construction
 # ------------------------------------------------------------------ #
 def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
-    sim = jobs_subset["sim"].to_numpy().reshape(-1, 1)
-    same_type = (jobs_subset["job_type"] == worker["job_type"]).astype(int).reshape(-1, 1)
+    sim = jobs_subset["sim"].to_numpy().reshape(-1,1)
+    same_type = (jobs_subset["job_type"] == worker["job_type"]).astype(int).reshape(-1,1)
     loc_match = (
-        (jobs_subset[["province", "district", "subdistrict"]].values
-         == worker[["province", "district", "subdistrict"]].values)
-        .all(axis=1).astype(int).reshape(-1, 1)
+        (jobs_subset[["province","district","subdistrict"]].values
+         == worker[["province","district","subdistrict"]].values)
+        .all(axis=1).astype(int).reshape(-1,1)
     )
 
     # Wage difference
     if "salary" in jobs_subset.columns:
-        job_pay = pd.to_numeric(jobs_subset["salary"], errors="coerce").to_numpy().reshape(-1, 1)
+        job_pay = pd.to_numeric(jobs_subset["salary"], errors="coerce").to_numpy().reshape(-1,1)
     else:
         job_pay = (
             pd.to_numeric(jobs_subset["start_salary"], errors="coerce")
             + pd.to_numeric(jobs_subset["range_salary"], errors="coerce")
-        ).to_numpy().reshape(-1, 1) / 2
-    worker_pay = float(worker.get("exp_wage", 0))
+        ).to_numpy().reshape(-1,1) / 2
+    worker_pay = float(worker.get("exp_wage",0))
     diff_wage = np.abs(job_pay - worker_pay)
 
     # Time overlap
-    if {"start_dt", "end_dt"}.issubset(jobs_subset.columns) and "avail_start" in worker.index:
-        overlap = np.minimum(jobs_subset["end_dt"], worker["avail_end"]) - \
-                  np.maximum(jobs_subset["start_dt"], worker["avail_start"])
-        time_match = (overlap.dt.total_seconds().fillna(0) > 0).astype(int).reshape(-1, 1)
+    if {"start_dt","end_dt"}.issubset(jobs_subset.columns) and "avail_start" in worker.index:
+        overlap = np.minimum(jobs_subset["end_dt"], worker["avail_end"]) - np.maximum(jobs_subset["start_dt"], worker["avail_start"])
+        time_match = (overlap.dt.total_seconds().fillna(0) > 0).astype(int).reshape(-1,1)
     else:
         time_match = np.zeros_like(sim)
 
@@ -128,21 +127,20 @@ def recommend(worker_row: pd.Series,
               jobs_df: pd.DataFrame,
               k: int = 50,
               n: int = 5) -> pd.DataFrame:
-
     # 1) FAISS search
-    mat = np.vstack(jobs_df['vec'])
+    mat = np.vstack(jobs_df["vec"])
     index = _build_faiss_index(mat)
-    w_vec = worker_row['vec'].reshape(1, -1)
+    w_vec = worker_row["vec"].reshape(1,-1)
     faiss.normalize_L2(w_vec)
     sim_scores, idxs = index.search(w_vec, k)
     sim_arr, idxs = sim_scores[0], idxs[0]
 
-    # 2) build subset and assign sim
+    # 2) prepare subset
     subset = jobs_df.iloc[idxs].copy().reset_index(drop=True)
-    subset['sim'] = sim_arr
+    subset["sim"] = sim_arr
 
-    # 3) filter exact job_type match
-    filtered = subset[subset['job_type'] == worker_row['job_type']]
+    # 3) filter exact job_type
+    filtered = subset[subset["job_type"] == worker_row["job_type"]]
     if filtered.empty:
         filtered = subset.copy()
     subset = filtered.reset_index(drop=True)
@@ -150,7 +148,7 @@ def recommend(worker_row: pd.Series,
     # 4) compute features
     sim_arr, diff_arr, type_arr, time_arr, loc_arr = _feature_df(worker_row, subset)
 
-    # 5) normalize wage difference
+    # 5) normalize wage
     max_diff = diff_arr.max() if diff_arr.max() > 0 else 1.0
     wage_score = 1 - (diff_arr / max_diff)
 
@@ -159,18 +157,17 @@ def recommend(worker_row: pd.Series,
     w_loc = 0.1
     w_wage = 0.05
     w_time = 0.05
-    # Note: sim is not weighted here since user didn't include sim weight
 
-    # 7) final score
+    # 7) final
     final = (
-        w_type * type_arr.reshape(-1) +
-        w_loc * loc_arr.reshape(-1) +
-        w_wage * wage_score.reshape(-1) +
-        w_time * time_arr.reshape(-1)
+        w_type  * type_arr.reshape(-1) +
+        w_loc   * loc_arr.reshape(-1) +
+        w_wage  * wage_score.reshape(-1) +
+        w_time  * time_arr.reshape(-1)
     )
 
-    subset['ai_score'] = final
-    subset = subset.sort_values('ai_score', ascending=False)
+    subset["ai_score"] = final
+    subset = subset.sort_values("ai_score", ascending=False)
 
     return subset.head(n).reset_index(drop=True)
 
