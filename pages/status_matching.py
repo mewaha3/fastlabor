@@ -32,8 +32,8 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["
 gc = gspread.authorize(creds)
 
 # 4) Load raw data
-raw_jobs    = pd.DataFrame(gc.open("fastlabor").worksheet("post_job"   ).get_all_records())
-raw_seekers = pd.DataFrame(gc.open("fastlabor").worksheet("find_job"   ).get_all_records())
+raw_jobs    = pd.DataFrame(gc.open("fastlabor").worksheet("post_job").get_all_records())
+raw_seekers = pd.DataFrame(gc.open("fastlabor").worksheet("find_job").get_all_records())
 status_df   = pd.DataFrame(gc.open("fastlabor").worksheet("match_results").get_all_records())
 status_df["findjob_id"] = status_df["findjob_id"].astype(str)
 
@@ -96,9 +96,9 @@ for rank, rec in enumerate(top5.itertuples(), start=1):
         unsafe_allow_html=True
     )
 
+    # ถ้า accepted ให้ปุ่มดูรายละเอียดงาน
     if status.lower() == "accepted":
         if st.button("ดูรายละเอียดงาน", key=f"detail_{find_id}"):
-            # เตรียมข้อมูลให้ job_detail
             job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
