@@ -103,10 +103,7 @@ for _, row in my_df.iterrows():
     st.markdown("---")
 
 # ------------------------------------------------------------------
-# 5) Refresh and Back buttons
-# ------------------------------------------------------------------
-if st.button("🔄 Refresh"):
-    st.experimental_set_query_params(ts=str(pd.Timestamp.utcnow().timestamp()))
+
 
 st.divider()
 if st.button("🔙 กลับหน้า My Jobs"):
