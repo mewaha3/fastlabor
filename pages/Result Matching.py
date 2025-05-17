@@ -21,14 +21,7 @@ if active_job_idx is None and active_seeker_idx is None:
     st.stop()
 
 # -----------------------------------------------------------------
-# Cache loading of the embedding model and matching functions
-@st.cache_resource(show_spinner=False)
-def load_matching_module():
-    from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend
-    return encode_job_df, encode_worker_df, recommend_seekers, recommend
-
-# -----------------------------------------------------------------
-# Cache loading of Google Sheets into DataFrame
+# Helper: load sheet to df
 @st.cache_data(show_spinner=False, ttl=300)
 def _sheet_df(name: str) -> pd.DataFrame:
     SCOPE = [
@@ -46,8 +39,11 @@ def _sheet_df(name: str) -> pd.DataFrame:
     return df
 
 # -----------------------------------------------------------------
-# Load & encode data (cached)
-encode_job_df, encode_worker_df, recommend_seekers, recommend = load_matching_module()
+# Import matching functions directly (no cache)
+from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend
+
+# -----------------------------------------------------------------
+# Load & encode data
 jobs_raw    = _sheet_df("post_job")
 seekers_raw = _sheet_df("find_job")
 jobs_df     = encode_job_df(jobs_raw)
@@ -111,7 +107,8 @@ if active_job_idx is not None:
             st.markdown(f"- **Location**: {loc}")
             st.markdown(f"- **Salary**: {sal}")
         with col2:
-            st.markdown(f"**AI Score:** {score:.2f}")
+            if score is not None:
+                st.markdown(f"**AI Score:** {score:.2f}")
             priority[rank] = st.selectbox("Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}")
 
     if st.button("✅ Confirm Matches", use_container_width=True):
@@ -176,7 +173,8 @@ elif active_seeker_idx is not None:
         st.markdown(f"- **Time**: {time}")
         st.markdown(f"- **Location**: {loc}")
         st.markdown(f"- **Salary**: {sal} THB")
-        st.markdown(f"- **AI Score:** {score:.2f}")
+        if score is not None:
+            st.markdown(f"- **AI Score:** {score:.2f}")
 
 # -----------------------------------------------------------------
 st.divider()
