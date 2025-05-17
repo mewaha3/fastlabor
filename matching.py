@@ -22,6 +22,7 @@ _TEXT_COL_WORKERS = [
     "job_date", "start_time", "end_time",
 ]
 
+
 def _encode_texts(texts: list[str]) -> np.ndarray:
     return _EMBED_MODEL.encode([str(t) for t in texts], show_progress_bar=False)
 
@@ -74,7 +75,7 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     worker_loc = [str(worker.get(c,"")).strip().lower() for c in ["province","district","subdistrict"]]
     loc_match = (loc_vals == worker_loc).all(axis=1).astype(int).reshape(-1,1)
 
-    # wage difference
+    # Wage difference
     if "salary" in jobs_subset.columns:
         job_pay = pd.to_numeric(jobs_subset["salary"], errors="coerce").to_numpy().reshape(-1,1)
     else:
@@ -84,7 +85,7 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     worker_pay = float(worker.get("exp_wage",0))
     diff_wage = np.abs(job_pay - worker_pay)
 
-    # time overlap
+    # Time overlap
     if {"start_dt","end_dt"}.issubset(jobs_subset.columns) and "avail_start" in worker.index:
         overlap = np.minimum(jobs_subset["end_dt"], worker["avail_end"]) - \
                   np.maximum(jobs_subset["start_dt"], worker["avail_start"])
@@ -95,7 +96,7 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     return sim, diff_wage, same_type, time_match, loc_match
 
 # ------------------------------------------------------------------ #
-# 5) Recommend with exact job_type filter
+# 5) Recommend function
 # ------------------------------------------------------------------ #
 def recommend(worker_row: pd.Series,
               jobs_df: pd.DataFrame,
@@ -103,7 +104,7 @@ def recommend(worker_row: pd.Series,
               n: int = 5) -> pd.DataFrame:
     mat = np.vstack(jobs_df["vec"])
     index = _build_faiss_index(mat)
-    w_vec = worker_row["vec"].reshape(1,-1)
+    w_vec = worker_row["vec"].reshape(1, -1)
     faiss.normalize_L2(w_vec)
     sim_scores, idxs = index.search(w_vec, k)
     sim_arr, idxs = sim_scores[0], idxs[0]
@@ -111,25 +112,16 @@ def recommend(worker_row: pd.Series,
     subset = jobs_df.iloc[idxs].copy().reset_index(drop=True)
     subset["sim"] = sim_arr
 
-    # filter exact job_type match (case-insensitive)
-    mask = subset["job_type"].str.strip().str.lower() == str(worker_row.get("job_type","")).strip().lower()
-    filtered = subset[mask]
-    if filtered.empty:
-        filtered = subset
-    subset = filtered.reset_index(drop=True)
-
-    # compute features
     sim_arr, diff_arr, type_arr, time_arr, loc_arr = _feature_df(worker_row, subset)
     max_diff = diff_arr.max() if diff_arr.max()>0 else 1.0
     wage_score = 1 - (diff_arr / max_diff)
 
     # weights
-    w_type = 0.8
-    w_loc  = 0.1
-    w_wage = 0.05
-    w_time = 0.05
+    w_type  = 0.8
+    w_loc   = 0.1
+    w_wage  = 0.05
+    w_time  = 0.05
 
-    # final score
     final = (
         w_type * type_arr.reshape(-1) +
         w_loc  * loc_arr.reshape(-1) +
@@ -138,14 +130,17 @@ def recommend(worker_row: pd.Series,
     )
 
     subset["ai_score"] = final
-    subset = subset.sort_values("ai_score", ascending=False)
-    return subset.head(n).reset_index(drop=True)
+    return subset.sort_values("ai_score", ascending=False).head(n).reset_index(drop=True)
 
 # ------------------------------------------------------------------ #
-# 6) Flip args for employer view
+# 6) Recommend seekers for employer with pre-filter
 # ------------------------------------------------------------------ #
 def recommend_seekers(job_row: pd.Series,
                       workers_df: pd.DataFrame,
                       k: int = 50,
                       n: int = 5) -> pd.DataFrame:
-    return recommend(worker_row=job_row, jobs_df=workers_df, k=k, n=n)
+    # Pre-filter workers by job_type (case-insensitive)
+    jt = str(job_row.get("job_type","")).strip().lower()
+    filtered = workers_df[workers_df["job_type"].str.strip().str.lower() == jt]
+    candidates = filtered if not filtered.empty else workers_df
+    return recommend(worker_row=job_row, jobs_df=candidates, k=k, n=n)
