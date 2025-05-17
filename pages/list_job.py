@@ -80,14 +80,17 @@ with tab1:
 | Location | {addr}               |
 | Salary   | {salary}             |
 """)
-            if st.button("🔍 ดูการจับคู่", key=f"post_{job_id}"):
-                st.session_state["selected_job_id"] = job_id
-                st.session_state.pop("seeker_idx", None)
-                st.switch_page("pages/Result Matching.py")
+col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("🔍 ดูการจับคู่", key=f"post_match_{job_id}"):
+                    st.session_state["selected_job_id"] = job_id
+                    st.session_state.pop("seeker_idx", None)
+                    st.switch_page("pages/Result Matching.py")
             with col_b:
-                if st.button("📊 ดูสถานะการจับคู่", key=f"status_{find_id}"):
-                    st.session_state["findjob_status_id"] = find_id
+                if st.button("📊 ดูสถานะการจับคู่", key=f"post_status_{job_id}"):
+                    st.session_state["status_job_id"] = job_id
                     st.switch_page("pages/status_matching.py")
+
 
 with tab2:
     st.subheader("🔍 รายการที่ฉันค้นหางาน")
@@ -117,13 +120,10 @@ with tab2:
 | Start Salary  | {min_sal}          |
 | Range Salary  | {max_sal}          |
 """)
-            # two buttons side by side
-            col_a, col_b = st.columns([1,1])
-            with col_a:
-                if st.button("🔍 ดูการจับคู่", key=f"find_{find_id}"):
-                    st.session_state["seeker_idx"] = idx
-                    st.session_state.pop("selected_job_id", None)
-                    st.switch_page("pages/find_job_matching.py")
+            if st.button("🔍 ดูการจับคู่", key=f"find_{find_id}"):
+                st.session_state["seeker_idx"] = idx
+                st.session_state.pop("selected_job_id", None)
+                st.switch_page("pages/find_job_matching.py")
 
 # 7) Back to Home
 st.divider()
