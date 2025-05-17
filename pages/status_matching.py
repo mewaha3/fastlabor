@@ -20,7 +20,7 @@ st.markdown("""
 
 st.title("📊 Status Matching")
 
-# 2) Grab job_id from session
+# 2) Get job_id from session (เพื่อคำนวณ Top-5 แต่จะไม่ใช้สำหรับกรองสถานะ)
 job_id = st.session_state.get("status_job_id")
 if not job_id:
     st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
@@ -39,23 +39,20 @@ raw_jobs    = pd.DataFrame(sh.worksheet("post_job").get_all_records())
 raw_seekers = pd.DataFrame(sh.worksheet("find_job").get_all_records())
 status_df   = pd.DataFrame(sh.worksheet("match_results").get_all_records())
 
-# normalize types
-raw_seekers["find_job_id"] = raw_seekers["findjob_id"].astype(str)
-status_df["find_job_id"]   = status_df["findjob_id"].astype(str)
-status_df["job_id"]        = status_df["job_id"].astype(str)
+# normalize the find_job_id column
+status_df["find_job_id"] = status_df["findjob_id"].astype(str)
 
-# 5) Encode & compute Top-5 seekers for this job
+# 5) Compute Top-5 seekers for this job
 jobs_enc    = encode_job_df(raw_jobs)
 seekers_enc = encode_worker_df(raw_seekers)
-# find the encoded row of this job
-idx_list = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
-if not idx_list:
-    st.error(f"❌ ไม่พบ Job ID = {job_id} ในระบบ")
+idxs = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
+if not idxs:
+    st.error(f"❌ ไม่พบ Job ID = {job_id}")
     st.stop()
-job_enc = jobs_enc.loc[idx_list[0]]
+job_enc = jobs_enc.loc[idxs[0]]
 top5 = recommend_seekers(job_enc, seekers_enc, n=5)
 
-# helper functions
+# helpers
 def get_status_color(s: str) -> str:
     s = (s or "").lower()
     return "green"  if s=="accepted"  else \
@@ -74,25 +71,22 @@ def avg_salary(raw: pd.Series) -> str:
 # 6) Display
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
 for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    # use rec.find_job_id to locate raw seeker and status
-    fid = str(getattr(rec, "find_job_id", ""))  
-    seeker = raw_seekers[raw_seekers["find_job_id"] == fid].iloc[0]
-    name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
-    gender = seeker.gender or "-"
-    jtype  = rec.job_type or "-"
-    date   = seeker.job_date or "-"
-    time   = f"{seeker.start_time} – {seeker.end_time}"
-    loc    = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
-    sal    = avg_salary(seeker)
-    ai     = rec.ai_score
+    # หา raw seeker ตาม rec.find_job_id
+    fid     = str(getattr(rec, "find_job_id", ""))
+    seeker  = raw_seekers[raw_seekers["findjob_id"].astype(str) == fid].iloc[0]
+    name    = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
+    gender  = seeker.gender or "-"
+    jtype   = rec.job_type or "-"
+    date    = seeker.job_date or "-"
+    time    = f"{seeker.start_time} – {seeker.end_time}"
+    loc     = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
+    sal     = avg_salary(seeker)
+    ai      = rec.ai_score
 
-    # lookup status
-    sr = status_df[
-        (status_df["job_id"] == job_id) &
-        (status_df["find_job_id"] == fid)
-    ]
-    status = sr.iloc[0]["status"] if not sr.empty else "on queue"
-    color  = get_status_color(status)
+    # กรองสถานะแค่ตาม find_job_id
+    sr      = status_df[status_df["find_job_id"] == fid]
+    status  = sr.iloc[0]["status"] if not sr.empty else "on queue"
+    color   = get_status_color(status)
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
@@ -110,15 +104,15 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         unsafe_allow_html=True
     )
 
-    # if accepted, show detail button
+    # ถ้า accepted ให้ปุ่มดูรายละเอียดงาน
     if status.lower()=="accepted":
         if st.button("ดูรายละเอียดงาน", key=f"detail_{fid}"):
             job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
                 "findjob_id": fid,
-                "first_name": seeker.first_name,
-                "last_name":  seeker.last_name,
+                "first_name":  seeker.first_name,
+                "last_name":   seeker.last_name,
                 "email":       seeker.email,
                 "gender":      seeker.gender
             }
@@ -126,6 +120,6 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
 
     st.markdown("---")
 
-# 7) Back to My Jobs
+# 7) Back button
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
