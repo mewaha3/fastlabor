@@ -60,26 +60,29 @@ with tab1:
             st.divider()
             job_id = row.get("job_id", "")
             st.markdown(f"### Job ID: {job_id}")
-            jtype = row.get("job_type", "-")
-            detail = row.get("job_detail", "-")
-            date = row.get("job_date", "-")
-            start = row.get("start_time", "-")
-            end = row.get("end_time", "-")
-            addr = row.get("job_address") or f"{row.get('province','')}/{row.get('district','')}/{row.get('subdistrict','')}"
+            jtype   = row.get("job_type", "-")
+            detail  = row.get("job_detail", "-")
+            date    = row.get("job_date", "-")
+            start   = row.get("start_time", "-")
+            end     = row.get("end_time", "-")
+            addr    = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
             if row.get("start_salary") or row.get("range_salary"):
                 salary = f"{row.get('start_salary','-')} – {row.get('range_salary','-')}"
             else:
                 salary = row.get("salary", "-")
+
+            # display as markdown table
             st.markdown(f"""
-| ฟิลด์     | รายละเอียด            |
-|----------|-----------------------|
-| Job Type | {jtype}               |
-| Detail   | {detail}             |
-| Date     | {date}               |
-| Time     | {start} – {end}      |
-| Location | {addr}               |
-| Salary   | {salary}             |
+| ฟิลด์     | รายละเอียด                |
+|----------|---------------------------|
+| Job Type | {jtype}                   |
+| Detail   | {detail}                  |
+| Date     | {date}                    |
+| Time     | {start} – {end}           |
+| Location | {addr}                    |
+| Salary   | {salary}                  |
 """)
+            # two buttons side by side
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("🔍 ดูการจับคู่", key=f"post_match_{job_id}"):
@@ -91,13 +94,6 @@ with tab1:
                     st.session_state["status_job_id"] = job_id
                     st.switch_page("pages/status_matching.py")
 
-
-
-
-
-
-
-
 with tab2:
     st.subheader("🔍 รายการที่ฉันค้นหางาน")
     if df_find.empty:
@@ -107,14 +103,15 @@ with tab2:
             st.divider()
             find_id = row.get("findjob_id", "")
             st.markdown(f"### Find ID: {find_id}")
-            jtype = row.get("job_type", "-")
-            skill = row.get("skills", "-")
-            date = row.get("job_date", "-")
-            start = row.get("start_time", "-")
-            end = row.get("end_time", "-")
-            addr = f"{row.get('province','')}/{row.get('district','')}/{row.get('subdistrict','')}"
+            jtype   = row.get("job_type", "-")
+            skill   = row.get("skills", "-")
+            date    = row.get("job_date", "-")
+            start   = row.get("start_time", "-")
+            end     = row.get("end_time", "-")
+            addr    = f"{row['province']}/{row['district']}/{row['subdistrict']}"
             min_sal = row.get("start_salary") or '-'
             max_sal = row.get("range_salary") or '-'
+
             st.markdown(f"""
 | ฟิลด์         | รายละเอียด         |
 |---------------|---------------------|
