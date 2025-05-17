@@ -20,20 +20,15 @@ st.title("🔍 รายการจับคู่ของฉัน")
 # ------------------------------------------------------------------
 def _sheet_df(sheet_name: str) -> pd.DataFrame:
     """Load a sheet into a DataFrame with normalized column names."""
-    SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
-             "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
+    SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
     gc = gspread.authorize(creds)
     ws = gc.open("fastlabor").worksheet(sheet_name)
     all_values = ws.get_all_values()
     if not all_values:
         return pd.DataFrame()
     df = pd.DataFrame(all_values[1:], columns=all_values[0])
-    df.columns = (df.columns
-                  .str.strip()
-                  .str.lower()
-                  .str.replace(" ", "_"))
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
 
 def _update_status(findjob_id: str, new_status: str):
@@ -41,30 +36,24 @@ def _update_status(findjob_id: str, new_status: str):
     if new_status not in ("Accepted", "Declined"):
         st.error("❌ สถานะต้องเป็น Accepted หรือ Declined")
         return
-
-    SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
-             "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
+    SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
     gc = gspread.authorize(creds)
     ws = gc.open("fastlabor").worksheet("match_results")
 
     df = _sheet_df("match_results")
-    # find the row index (1-based including header)
     try:
         row_ix = df.index[df["findjob_id"] == findjob_id][0] + 2
     except IndexError:
         st.error(f"❌ ไม่พบ findjob_id = {findjob_id}")
         return
 
-    # find the column number for 'status'
     try:
         col_ix = list(df.columns).index("status") + 1
     except ValueError:
         st.error("❌ ไม่พบคอลัมน์ 'status' ใน match_results")
         return
 
-    # build A1 notation, then update that single cell
     cell = f"{chr(ord('A') + col_ix - 1)}{row_ix}"
     try:
         ws.update_acell(cell, new_status)
@@ -80,9 +69,11 @@ if match_df.empty:
     st.info("📄 ไม่มีข้อมูล match_results")
     st.stop()
 
-my_df = match_df[match_df["email"] == user_email] \
-          .drop_duplicates(subset="findjob_id", keep="first") \
-          .reset_index(drop=True)
+my_df = (
+    match_df[match_df["email"] == user_email]
+    .drop_duplicates(subset="findjob_id", keep="first")
+    .reset_index(drop=True)
+)
 
 if my_df.empty:
     st.info("❌ ไม่มีรายการจับคู่สำหรับบัญชีนี้")
@@ -105,17 +96,18 @@ for _, row in my_df.iterrows():
     with col1:
         if st.button("Decline", key=f"decline_{fid}"):
             _update_status(fid, "Declined")
-            st.experimental_rerun()
     with col2:
         if st.button("Accept", key=f"accept_{fid}"):
             _update_status(fid, "Accepted")
-            # you could switch to details page or simply rerun
-            st.experimental_rerun()
 
     st.markdown("---")
 
 # ------------------------------------------------------------------
-# 5) Back to My Jobs
+# 5) Refresh and Back buttons
 # ------------------------------------------------------------------
+if st.button("🔄 Refresh"):
+    st.experimental_set_query_params(ts=str(pd.Timestamp.utcnow().timestamp()))
+
+st.divider()
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
