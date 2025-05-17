@@ -12,28 +12,15 @@ _EMBED_MODEL = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
 # ------------------------------------------------------------------ #
 # 2) Text encoding (include date/time/location/salary)
 # ------------------------------------------------------------------ #
-_TEXT_COL_JOBS = [
-    "job_type",
-    "job_detail",
-    "salary",
-    "province",
-    "district",
-    "subdistrict",
-    "job_date",
-    "start_time",
-    "end_time",
+_TEXT_COL_JOBS    = [
+    "job_type", "job_detail", "required_skill",
+    "province", "district", "subdistrict",
+    "job_date", "start_time", "end_time"
 ]
 _TEXT_COL_WORKERS = [
-    "job_type",
-    "skills",
-    "start_salary",
-    "range_salary",
-    "province",
-    "district",
-    "subdistrict",
-    "job_date",
-    "start_time",
-    "end_time",
+    "job_type", "skills",
+    "province", "district", "subdistrict",
+    "job_date", "start_time", "end_time"
 ]
 
 
