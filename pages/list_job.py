@@ -115,6 +115,10 @@ with tab2:
 | Range Salary  | {max_sal}          |
 """
             )
+            if st.button("🔍 ดูการจับคู่", key=f"post_{job_id}"):
+                st.session_state["selected_job_id"] = job_id
+                st.session_state.pop("seeker_idx", None)
+                st.switch_page("pages/Result Matching.py")
 
 # 7) Back to Home
 st.divider()
