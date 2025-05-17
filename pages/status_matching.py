@@ -19,15 +19,17 @@ st.markdown("""
 
 st.title("📊 Status Matching")
 
-# 2) Get job_id from session
-job_id = st.session_state.get("status_job_id")
-if not job_id:
+# 2) Get findjob_id from session
+findjob_id = st.session_state.get("status_job_id")
+if not findjob_id:
     st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
     st.stop()
 
 # 3) Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    json.loads(st.secrets["gcp"]["credentials"]), scope
+)
 gc = gspread.authorize(creds)
 sh = gc.open("fastlabor")
 
@@ -36,13 +38,13 @@ ws = sh.worksheet("match_results")
 records = ws.get_all_records()
 df = pd.DataFrame(records)
 
-# 5) Filter to only this job_id
-status_df = df[df["job_id"] == job_id].reset_index(drop=True)
+# 5) Filter to only this findjob_id
+status_df = df[df["findjob_id"] == findjob_id].reset_index(drop=True)
 
 if status_df.empty:
-    st.info(f"❌ ไม่พบการจับคู่สำหรับ Job ID = {job_id}")
+    st.info(f"❌ ไม่พบการจับคู่สำหรับ Find Job ID = {findjob_id}")
 else:
-    st.markdown(f"### Job ID: {job_id}")
+    st.markdown(f"### Find Job ID: {findjob_id}")
     # Show each applicant
     for idx, row in status_df.iterrows():
         emp_no = idx + 1
@@ -52,7 +54,12 @@ else:
         status   = row.get('status','-')
         # color mapping
         c = status.lower()
-        color = "green" if c=="accepted" else "orange" if c=="on queue" else "red" if c=="declined" else "gray"
+        color = (
+            "green" if c == "accepted" else
+            "orange" if c == "on queue" else
+            "red" if c == "declined" else
+            "gray"
+        )
 
         st.markdown(f"**Employee No.{emp_no}**")
         st.markdown(f"- **Name:** {name}")
