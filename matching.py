@@ -116,10 +116,10 @@ def recommend(worker_row: pd.Series,
     wage_score = 1 - (diff_arr / max_diff)  # Normalized wage difference
     
     # Increase weight for location and wage (if location matching is more important)
-    w_type = 0.3  # Job type matching (reduced weight)
-    w_loc = 0.4  # Location matching (increased weight)
-    w_wage = 0.2  # Wage matching (increased weight)
-    w_time = 0.1  # Time matching (slightly adjusted)
+    w_type = 0.8  # Job type matching (reduced weight)
+    w_loc = 0.1  # Location matching (increased weight)
+    w_wage = 0.05  # Wage matching (increased weight)
+    w_time = 0.05  # Time matching (slightly adjusted)
     
     # Calculate the final score (give priority to location and wage)
     final = (
