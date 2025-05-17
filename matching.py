@@ -127,7 +127,7 @@ def recommend(worker_row: pd.Series,
     wage_score = 1 - (diff_arr / max_diff)
 
     # Combine with weights
-    w_type, w_loc, w_wage, w_time = 0.7, 0.2, 0.05, 0.05
+    w_type, w_loc, w_wage, w_time = 0.9, 0.05, 0.02, 0.03
     subset['ai_score'] = (
         w_type * type_arr +
         w_loc  * loc_arr +
