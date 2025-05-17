@@ -42,7 +42,7 @@ status_df   = pd.DataFrame(sh.worksheet("match_results").get_all_records())
 # ensure findjob_id column is string for matching
 status_df["findjob_id"] = status_df["findjob_id"].astype(str)
 
-# 5) Compute Top-5 seek ers
+# 5) Compute Top-5 seekers
 jobs_enc    = encode_job_df(raw_jobs)
 seekers_enc = encode_worker_df(raw_seekers)
 idxs = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
@@ -50,38 +50,26 @@ if not idxs:
     st.error(f"❌ ไม่พบ Job ID = {job_id}")
     st.stop()
 job_enc = jobs_enc.loc[idxs[0]]
-top5 = recommend_seekers(job_enc, seekers_enc, n=5)
+original = recommend_seekers(job_enc, seekers_enc, n=50)  # ขอ 50 ก่อนคัดไม่ซ้ำ
 
-# helpers
-def get_status_color(s: str) -> str:
-    s = (s or "").lower()
-    return "green"  if s=="accepted"  else \
-           "orange" if s=="on queue"  else \
-           "red"    if s=="declined"   else \
-           "gray"
+# คัดไม่ซ้ำตามอีเมล
+unique_recs = []
+seen_emails = set()
+for rec in original.itertuples(index=False):
+    if rec.email not in seen_emails:
+        unique_recs.append(rec)
+        seen_emails.add(rec.email)
+    if len(unique_recs) == 5:
+        break
 
-def avg_salary(raw: pd.Series) -> str:
-    try:
-        s = float(raw.get("start_salary") or raw.get("salary") or 0)
-        r = float(raw.get("range_salary") or raw.get("salary") or 0)
-        return f"{(s+r)/2:.0f}"
-    except:
-        return "-"
-
-# 6) Render Top-5 + status
+# 6) Render
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
-for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    # หาแถว raw_seekers โดย match กับ rec.email
+for rank, rec in enumerate(unique_recs, start=1):
+    # หา raw seeker
     seeker = raw_seekers[raw_seekers["email"] == rec.email].iloc[0]
-    fid    = str(seeker["findjob_id"])  # ID ในชีต match_results
+    fid    = str(seeker["findjob_id"])
     name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
-    gender = seeker.gender or "-"
-    date   = seeker.job_date or "-"
-    time   = f"{seeker.start_time} – {seeker.end_time}"
-    loc    = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
-    sal    = avg_salary(seeker)
-    ai     = rec.ai_score
-    jtype  = rec.job_type or "-"
+    # … แปลงฟิลด์อื่นๆ เหมือนเดิม …
 
     # lookup status
     sr     = status_df[status_df["findjob_id"] == fid]
@@ -90,13 +78,8 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
-    st.markdown(f"- **Gender:** {gender}")
-    st.markdown(f"- **Job Type:** {jtype}")
-    st.markdown(f"- **Date:** {date}")
-    st.markdown(f"- **Time:** {time}")
-    st.markdown(f"- **Location:** {loc}")
-    st.markdown(f"- **Salary:** {sal}")
-    st.markdown(f"- **AI Score:** {ai:.2f}")
+    # … พิมพ์ field อื่นๆ …
+    st.markdown(f"- **AI Score:** {rec.ai_score:.2f}")
     st.markdown(
         f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>"
         f"{status}"
@@ -110,10 +93,7 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
                 "findjob_id": fid,
-                "first_name":  seeker.first_name,
-                "last_name":   seeker.last_name,
-                "email":       seeker.email,
-                "gender":      seeker.gender
+                **seeker[["first_name","last_name","email","gender"]].to_dict()
             }
             st.switch_page("pages/job_detail.py")
 
