@@ -23,12 +23,37 @@ if creds_info:
 else:
     creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 gc = gspread.authorize(creds)
-spreadsheet = gc.open("fastlabor")
 
-# 3) Helper: load sheet into DataFrame
+try:
+    spreadsheet = gc.open("fastlabor")
+except Exception as e:
+    st.error(f"❌ ไม่สามารถเปิดสเปรดชีต fastlabor ได้: {e}")
+    st.stop()
+
+# 3) Helper: load sheet into DataFrame with error handling
 def load_df(sheet_name: str) -> pd.DataFrame:
-    ws = spreadsheet.worksheet(sheet_name)
-    vals = ws.get_all_values()
+    try:
+        ws = spreadsheet.worksheet(sheet_name)
+    except gspread.exceptions.WorksheetNotFound:
+        st.error(f"❌ ไม่พบ worksheet ชื่อ '{sheet_name}'")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาดขณะเปิด worksheet '{sheet_name}': {e}")
+        st.stop()
+
+    try:
+        vals = ws.get_all_values()
+    except gspread.exceptions.APIError as e:
+        st.error(f"❌ gspread APIError เมื่อดึงข้อมูลจาก '{sheet_name}': {e}")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาดขณะอ่านข้อมูลจาก '{sheet_name}': {e}")
+        st.stop()
+
+    if not vals or len(vals) < 2:
+        # empty sheet
+        return pd.DataFrame()
+
     df = pd.DataFrame(vals[1:], columns=vals[0])
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
@@ -71,7 +96,6 @@ with tab1:
             else:
                 salary = row.get("salary", "-")
 
-            # display as markdown table
             st.markdown(f"""
 | ฟิลด์     | รายละเอียด                |
 |----------|---------------------------|
@@ -82,7 +106,6 @@ with tab1:
 | Location | {addr}                    |
 | Salary   | {salary}                  |
 """)
-            # two buttons side by side
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("🔍 ดูการจับคู่", key=f"post_match_{job_id}"):
