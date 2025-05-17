@@ -31,13 +31,13 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
 gc = gspread.authorize(creds)
 
-# raw data
-raw_jobs    = pd.DataFrame(gc.open("fastlabor").worksheet("post_job").get_all_records())
-raw_seekers = pd.DataFrame(gc.open("fastlabor").worksheet("find_job").get_all_records())
+# 4) Load raw data
+raw_jobs    = pd.DataFrame(gc.open("fastlabor").worksheet("post_job"   ).get_all_records())
+raw_seekers = pd.DataFrame(gc.open("fastlabor").worksheet("find_job"   ).get_all_records())
 status_df   = pd.DataFrame(gc.open("fastlabor").worksheet("match_results").get_all_records())
 status_df["findjob_id"] = status_df["findjob_id"].astype(str)
 
-# 4) Compute top-5 recommendations
+# 5) Encode & compute top-5 recommendations
 jobs_enc    = encode_job_df(raw_jobs)
 seekers_enc = encode_worker_df(raw_seekers)
 idxs = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
@@ -47,37 +47,38 @@ if not idxs:
 job_enc = jobs_enc.loc[idxs[0]]
 top5 = recommend_seekers(job_enc, seekers_enc, n=5)
 
-# 5) Helpers
+# 6) Helpers
 def get_status_color(status: str) -> str:
     s = (status or "").lower()
     return "green" if s=="accepted" else "orange" if s=="on queue" else "red" if s=="declined" else "gray"
 
-def avg_salary(raw):
+def avg_salary(raw: pd.Series) -> str:
     try:
         s = float(raw.get("start_salary") or raw.get("salary") or 0)
         r = float(raw.get("range_salary") or raw.get("salary") or 0)
         return f"{(s+r)/2:.0f}"
-    except: return "-"
+    except:
+        return "-"
 
-# 6) Display Top-5 with status and details
+# 7) Display Top-5 with status and details
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
-for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    # find raw seeker and raw job
-    seeker_raw = raw_seekers[raw_seekers["email"]==rec.email].iloc[0]
-    status_row = status_df[status_df["findjob_id"]==str(seeker_raw["findjob_id"])]
-    status = status_row.iloc[0]["status"] if not status_row.empty else "on queue"
-    color  = get_status_color(status)
-    job_raw = raw_jobs[raw_jobs["job_id"]==job_id].iloc[0]
+for rank, rec in enumerate(top5.itertuples(), start=1):
+    # ใช้ rec.Index เป็นดัชนีแถวใน raw_seekers
+    seeker_raw = raw_seekers.iloc[rec.Index]
+    find_id    = str(seeker_raw["findjob_id"])
+    name       = f"{seeker_raw.first_name} {seeker_raw.last_name}".strip() or "-"
+    gender     = seeker_raw.gender or "-"
+    jtype      = rec.job_type or "-"
+    date       = seeker_raw.job_date or "-"
+    time       = f"{seeker_raw.start_time} – {seeker_raw.end_time}"
+    loc        = f"{seeker_raw.province}/{seeker_raw.district}/{seeker_raw.subdistrict}"
+    sal        = avg_salary(seeker_raw)
+    ai_score   = rec.ai_score
 
-    # details
-    name     = f"{seeker_raw.first_name} {seeker_raw.last_name}".strip() or "-"
-    gender   = seeker_raw.gender or "-"
-    jtype    = rec.job_type or "-"
-    date     = seeker_raw.job_date or "-"
-    time     = f"{seeker_raw.start_time} – {seeker_raw.end_time}"
-    loc      = f"{seeker_raw.province}/{seeker_raw.district}/{seeker_raw.subdistrict}"
-    sal      = avg_salary(seeker_raw)
-    ai_score = rec.ai_score
+    # lookup status
+    stat_row = status_df[status_df["findjob_id"] == find_id]
+    status   = stat_row.iloc[0]["status"] if not stat_row.empty else "on queue"
+    color    = get_status_color(status)
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
@@ -89,25 +90,28 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
     st.markdown(f"- **Salary:** {sal}")
     st.markdown(f"- **AI Score:** {ai_score:.2f}")
     st.markdown(
-        f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>{status}</span>",
+        f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>"
+        f"{status}"
+        f"</span>",
         unsafe_allow_html=True
     )
 
-    if status.lower()=="accepted":
-        if st.button("ดูรายละเอียดงาน", key=f"detail_{seeker_raw['findjob_id']}"):
-            # pass selected match into session for job_detail
+    if status.lower() == "accepted":
+        if st.button("ดูรายละเอียดงาน", key=f"detail_{find_id}"):
+            # เตรียมข้อมูลให้ job_detail
+            job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
-                "findjob_id": seeker_raw["findjob_id"],
+                "findjob_id": find_id,
                 "first_name": seeker_raw.first_name,
-                "last_name": seeker_raw.last_name,
-                "email": seeker_raw.email,
-                "gender": seeker_raw.gender
+                "last_name":  seeker_raw.last_name,
+                "email":       seeker_raw.email,
+                "gender":      seeker_raw.gender
             }
             st.switch_page("pages/job_detail.py")
 
     st.markdown("---")
 
-# 7) Back button
+# 8) Back button
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
