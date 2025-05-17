@@ -22,6 +22,7 @@ if active_job_idx is None and active_seeker_idx is None:
 
 # -----------------------------------------------------------------
 # Helper: load sheet to df
+# -----------------------------------------------------------------
 def _sheet_df(name: str) -> pd.DataFrame:
     SCOPE = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -39,13 +40,15 @@ def _sheet_df(name: str) -> pd.DataFrame:
 
 # -----------------------------------------------------------------
 # Load & encode data
-from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend  # Import matching.py functions
+# -----------------------------------------------------------------
+from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend
 
 jobs_df = encode_job_df(_sheet_df("post_job"))
 seekers_df = encode_worker_df(_sheet_df("find_job"))
 
 # -----------------------------------------------------------------
 # Utility: compute avg salary
+# -----------------------------------------------------------------
 def avg_salary(row: pd.Series) -> str:
     try:
         s = float(row.get("start_salary") or row.get("salary") or 0)
@@ -58,6 +61,7 @@ def avg_salary(row: pd.Series) -> str:
 
 # -----------------------------------------------------------------
 # Prepare match_results sheet headers
+# -----------------------------------------------------------------
 def _get_match_ws():
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]),
@@ -69,12 +73,13 @@ def _get_match_ws():
 
 # -----------------------------------------------------------------
 # 4) Employer view: show Top-5 seekers & choose priority
+# -----------------------------------------------------------------
 if active_job_idx is not None:
     job_row_encoded = jobs_df.iloc[active_job_idx]
     top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
 
     raw_seek = _sheet_df("find_job")
-    raw_jobs_df = _sheet_df("post_job")  # Load post_job data here
+    raw_jobs_df = _sheet_df("post_job")
 
     priority = {}
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
@@ -96,44 +101,41 @@ if active_job_idx is not None:
             st.markdown(f"- **Time**: {time}")
             st.markdown(f"- **Location**: {loc}")
             st.markdown(f"- **Salary**: {sal}")
+            st.markdown(f"- **AI Score**: {rec.ai_score:.2f}")
         with col2:
-            priority[rank] = st.selectbox("Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}")
+            priority[rank] = st.selectbox(
+                "Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}"
+            )
 
     if st.button("✅ Confirm Matches", use_container_width=True):
-        ws_tuple = _get_match_ws()
-        ws = ws_tuple[0]
-        headers_in_sheet = [h.lower().strip() for h in ws_tuple[1]]  # Get Header from Sheet and make it lowercase and without spaces
+        ws, headers = _get_match_ws()
+        headers_in_sheet = [h.lower().strip() for h in headers]
 
         match_data = []
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-            # Find matching raw seeker
             raw_seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
-            # Find matching raw job to get salary
             raw_job = raw_jobs_df[raw_jobs_df.job_id == job_row_encoded.job_id].iloc[0]
             job_salary = raw_job.get("salary", "")
 
-            match_data_row = raw_seeker.copy()
-            match_data_row['priority'] = priority.get(rank, 1)
-            match_data_row['status'] = 'on queue'
-            match_data_row['find_job_id'] = top5.index[rank - 1]
-            match_data_row['job_salary'] = job_salary
-
-            match_data.append(match_data_row)
+            row = raw_seeker.copy()
+            row['priority'] = priority.get(rank, 1)
+            row['status'] = 'on queue'
+            row['find_job_id'] = top5.index[rank - 1]
+            row['job_salary'] = job_salary
+            row['ai_score'] = rec.ai_score
+            match_data.append(row)
 
         if match_data:
             df_to_upload = pd.DataFrame(match_data)
-            cols_to_upload = [col.lower().strip() for col in df_to_upload.columns]  # Adjust column names to upload
+            cols = [col.lower().strip() for col in df_to_upload.columns]
+            existing = [c for c in cols if c in headers_in_sheet]
+            df_upload = df_to_upload[df_to_upload.columns[df_to_upload.columns.str.lower().str.strip().isin(existing)]]
+            df_upload = df_upload[sorted(df_upload.columns, key=lambda c: headers_in_sheet.index(c.lower().strip()))]
 
-            # Create DataFrame with only columns that exist in Sheet and sorted by order in Sheet
-            cols_to_upload_existing = [col for col in cols_to_upload if col in headers_in_sheet]
-            df_upload = df_to_upload[df_to_upload.columns[df_to_upload.columns.str.lower().str.strip().isin(cols_to_upload_existing)]]
-            df_upload = df_upload[sorted(df_upload.columns, key=lambda col: headers_in_sheet.index(col.lower().strip()))]
-
-            # Find the last row with data to append
             last_row = len(ws.get_all_values()) + 1
-            # Try writing data directly with gspread
             data_to_write = df_upload.values.tolist()
-            cell_range = f"A{last_row}:{chr(ord('A') + len(df_upload.columns) - 1)}{last_row + len(data_to_write) - 1}"
+            end_col = chr(ord('A') + df_upload.shape[1] - 1)
+            cell_range = f"A{last_row}:{end_col}{last_row + len(data_to_write) - 1}"
             ws.update(cell_range, data_to_write)
             st.success("🎉 บันทึกผลการจับคู่เรียบร้อยแล้ว!")
         else:
@@ -141,6 +143,7 @@ if active_job_idx is not None:
 
 # -----------------------------------------------------------------
 # 5) Worker view: show Top-5 jobs
+# -----------------------------------------------------------------
 elif active_seeker_idx is not None:
     seeker_row_encoded = seekers_df.iloc[active_seeker_idx]
     top5 = recommend(seeker_row_encoded, jobs_df, n=5)
@@ -162,6 +165,7 @@ elif active_seeker_idx is not None:
         st.markdown(f"- **Time**: {time}")
         st.markdown(f"- **Location**: {loc}")
         st.markdown(f"- **Salary**: {sal} THB")
+        st.markdown(f"- **AI Score**: {rec.ai_score:.2f}")
 
 # -----------------------------------------------------------------
 st.divider()
