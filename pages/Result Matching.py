@@ -12,7 +12,7 @@ if not st.session_state.get("logged_in", False):
 st.title("🔍 AI Matching – ผลการจับคู่")
 
 # 2) Retrieve selected_job_id (from My Jobs) and optional seeker_idx
-selected_job_id = st.session_state.get("selected_job_id")
+selected_job_id   = st.session_state.get("selected_job_id")
 active_seeker_idx = st.session_state.get("seeker_idx")
 if selected_job_id is None and active_seeker_idx is None:
     st.info("กรุณากลับไปเลือกงาน/ผู้สมัครจากหน้า My Jobs ก่อนค่ะ")
@@ -32,7 +32,7 @@ def _sheet_df(name: str) -> pd.DataFrame:
     gc = gspread.authorize(creds)
     ws = gc.open("fastlabor").worksheet(name)
     vals = ws.get_all_values()
-    df = pd.DataFrame(vals[1:], columns=vals[0])
+    df   = pd.DataFrame(vals[1:], columns=vals[0])
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
 
@@ -41,7 +41,7 @@ def _sheet_df(name: str) -> pd.DataFrame:
 # -----------------------------------------------------------------
 from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend
 
-jobs_df = encode_job_df(_sheet_df("post_job"))
+jobs_df    = encode_job_df(_sheet_df("post_job"))
 seekers_df = encode_worker_df(_sheet_df("find_job"))
 
 # -----------------------------------------------------------------
@@ -63,7 +63,7 @@ def avg_salary(row: pd.Series) -> str:
 def _get_match_ws():
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         json.loads(st.secrets["gcp"]["credentials"]),
-        ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
     )
     gc = gspread.authorize(creds)
     ws = gc.open("fastlabor").worksheet("match_results")
@@ -73,19 +73,36 @@ def _get_match_ws():
 # 4) Employer view: show Top-5 seekers & choose priority
 # -----------------------------------------------------------------
 if selected_job_id is not None:
-    # find the selected job row by job_id
+    # Locate the selected job
     job_rows = jobs_df[jobs_df["job_id"] == selected_job_id]
     if job_rows.empty:
         st.error(f"ไม่พบงานที่มี Job ID = {selected_job_id}")
         st.stop()
     job_row_encoded = job_rows.iloc[0]
 
-    top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
-    # filter out duplicate emails
-    top5 = top5.drop_duplicates(subset="email").reset_index(drop=True)
+    # Get initial recommendations
+    original = recommend_seekers(job_row_encoded, seekers_df, n=5)
 
-    raw_seek   = _sheet_df("find_job")
-    raw_jobs   = _sheet_df("post_job")
+    # Build a unique list by email, then fallback to fill up to 5
+    unique = []
+    used_idxs = set()
+    for i, rec in enumerate(original.itertuples(index=False)):
+        if rec.email not in {u.email for u in unique}:
+            unique.append(rec)
+            used_idxs.add(i)
+        if len(unique) == 5:
+            break
+    if len(unique) < 5:
+        for i, rec in enumerate(original.itertuples(index=False)):
+            if i not in used_idxs:
+                unique.append(rec)
+            if len(unique) == 5:
+                break
+
+    top5 = pd.DataFrame(unique)
+
+    raw_seek = _sheet_df("find_job")
+    raw_jobs = _sheet_df("post_job")
     priorities = {}
 
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
@@ -117,13 +134,12 @@ if selected_job_id is not None:
     if st.button("✅ Confirm Matches", use_container_width=True):
         ws, headers = _get_match_ws()
         headers_in_sheet = [h.lower().strip() for h in headers]
-
         match_data = []
+
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
             seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
             job    = raw_jobs[raw_jobs.job_id == selected_job_id].iloc[0]
-            job_salary = job.get("salary", "")
-
+            job_salary = job.get("salary","")
             row = seeker.copy()
             row["priority"]    = priorities.get(rank,1)
             row["status"]      = "on queue"
@@ -134,7 +150,7 @@ if selected_job_id is not None:
 
         if match_data:
             df_up = pd.DataFrame(match_data)
-            cols  = [c.lower().strip() for c in df_up.columns]
+            cols = [c.lower().strip() for c in df_up.columns]
             exist = [c for c in cols if c in headers_in_sheet]
             df_up = df_up[df_up.columns[df_up.columns.str.lower().str.strip().isin(exist)]]
             df_up = df_up[sorted(df_up.columns, key=lambda c: headers_in_sheet.index(c.lower().strip()))]
@@ -151,19 +167,19 @@ if selected_job_id is not None:
 # 5) Worker view: show Top-5 jobs
 # -----------------------------------------------------------------
 elif active_seeker_idx is not None:
-    seeker_row_encoded = seekers_df.iloc[active_seeker_idx]
-    top5 = recommend(seeker_row_encoded, jobs_df, n=5)
+    seeker_row = seekers_df.iloc[active_seeker_idx]
+    top5 = recommend(seeker_row, jobs_df, n=5)
 
     raw_jobs = _sheet_df("post_job")
-
     st.subheader("📋 งานที่ AI แนะนำสำหรับคุณ")
+
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
-        job   = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
-        date  = job.job_date or "-"
-        time  = f"{job.start_time} – {job.end_time}"
-        loc   = f"{job.province}/{job.district}/{job.subdistrict}"
-        sal   = avg_salary(job)
+        job = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
+        date = job.job_date or "-"
+        time = f"{job.start_time} – {job.end_time}"
+        loc  = f"{job.province}/{job.district}/{job.subdistrict}"
+        sal  = avg_salary(job)
 
         st.markdown(f"**Job No.{rank}**")
         st.markdown(f"- **Job Type**: {rec.job_type}")
