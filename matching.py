@@ -22,11 +22,15 @@ _TEXT_COL_WORKERS = [
     "job_date", "start_time", "end_time",
 ]
 
-
+# ------------------------------------------------------------------ #
+# 3) Text encoding helper
+# ------------------------------------------------------------------ #
 def _encode_texts(texts: list[str]) -> np.ndarray:
     return _EMBED_MODEL.encode([str(t) for t in texts], show_progress_bar=False)
 
-
+# ------------------------------------------------------------------ #
+# 4) Encoding DataFrames
+# ------------------------------------------------------------------ #
 def encode_job_df(jobs_df: pd.DataFrame) -> pd.DataFrame:
     df = jobs_df.copy()
     for col in _TEXT_COL_JOBS:
@@ -37,7 +41,7 @@ def encode_job_df(jobs_df: pd.DataFrame) -> pd.DataFrame:
     if {"job_date","start_time","end_time"}.issubset(df.columns):
         df["job_date"] = pd.to_datetime(df["job_date"], errors="coerce").dt.date
         df["start_dt"] = pd.to_datetime(df["job_date"].astype(str) + " " + df["start_time"], errors="coerce")
-        df["end_dt"] = pd.to_datetime(df["job_date"].astype(str) + " " + df["end_time"], errors="coerce")
+        df["end_dt"]   = pd.to_datetime(df["job_date"].astype(str) + " " + df["end_time"],   errors="coerce")
     return df
 
 
@@ -46,7 +50,7 @@ def encode_worker_df(workers_df: pd.DataFrame) -> pd.DataFrame:
     for col in _TEXT_COL_WORKERS:
         df[col] = df.get(col, "").fillna("").astype(str)
     df["__text"] = df[_TEXT_COL_WORKERS].apply(lambda row: " ".join(row.values), axis=1)
-    df["vec"] = list(_encode_texts(df["__text"].tolist()))
+    df["vec"]    = list(_encode_texts(df["__text"].tolist()))
     df.drop(columns="__text", inplace=True)
     if {"job_date","start_time","end_time"}.issubset(df.columns):
         df["job_date"]    = pd.to_datetime(df["job_date"],    errors="coerce").dt.date
@@ -55,7 +59,7 @@ def encode_worker_df(workers_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # ------------------------------------------------------------------ #
-# 3) Build FAISS index
+# 5) Build FAISS index
 # ------------------------------------------------------------------ #
 def _build_faiss_index(mat: np.ndarray):
     dim = mat.shape[1]
@@ -65,7 +69,7 @@ def _build_faiss_index(mat: np.ndarray):
     return index
 
 # ------------------------------------------------------------------ #
-# 4) Feature construction
+# 6) Feature construction
 # ------------------------------------------------------------------ #
 def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     sim = jobs_subset["sim"].to_numpy().reshape(-1,1)
@@ -75,7 +79,6 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     worker_loc = [str(worker.get(c,"")).strip().lower() for c in ["province","district","subdistrict"]]
     loc_match = (loc_vals == worker_loc).all(axis=1).astype(int).reshape(-1,1)
 
-    # Wage difference
     if "salary" in jobs_subset.columns:
         job_pay = pd.to_numeric(jobs_subset["salary"], errors="coerce").to_numpy().reshape(-1,1)
     else:
@@ -85,7 +88,6 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     worker_pay = float(worker.get("exp_wage",0))
     diff_wage = np.abs(job_pay - worker_pay)
 
-    # Time overlap
     if {"start_dt","end_dt"}.issubset(jobs_subset.columns) and "avail_start" in worker.index:
         overlap = np.minimum(jobs_subset["end_dt"], worker["avail_end"]) - \
                   np.maximum(jobs_subset["start_dt"], worker["avail_start"])
@@ -96,7 +98,7 @@ def _feature_df(worker: pd.Series, jobs_subset: pd.DataFrame) -> tuple:
     return sim, diff_wage, same_type, time_match, loc_match
 
 # ------------------------------------------------------------------ #
-# 5) Recommend function
+# 7) Recommend function
 # ------------------------------------------------------------------ #
 def recommend(worker_row: pd.Series,
               jobs_df: pd.DataFrame,
@@ -113,10 +115,9 @@ def recommend(worker_row: pd.Series,
     subset["sim"] = sim_arr
 
     sim_arr, diff_arr, type_arr, time_arr, loc_arr = _feature_df(worker_row, subset)
-    max_diff = diff_arr.max() if diff_arr.max()>0 else 1.0
+    max_diff = diff_arr.max() if diff_arr.max() > 0 else 1.0
     wage_score = 1 - (diff_arr / max_diff)
 
-    # weights
     w_type  = 0.8
     w_loc   = 0.1
     w_wage  = 0.05
@@ -133,14 +134,14 @@ def recommend(worker_row: pd.Series,
     return subset.sort_values("ai_score", ascending=False).head(n).reset_index(drop=True)
 
 # ------------------------------------------------------------------ #
-# 6) Recommend seekers for employer with pre-filter
+# 8) Recommend seekers for employer (strict filter)
 # ------------------------------------------------------------------ #
 def recommend_seekers(job_row: pd.Series,
                       workers_df: pd.DataFrame,
                       k: int = 50,
                       n: int = 5) -> pd.DataFrame:
-    # Pre-filter workers by job_type (case-insensitive)
     jt = str(job_row.get("job_type","")).strip().lower()
-    filtered = workers_df[workers_df["job_type"].str.strip().str.lower() == jt]
-    candidates = filtered if not filtered.empty else workers_df
+    candidates = workers_df[workers_df["job_type"].str.strip().str.lower() == jt]
+    if candidates.empty:
+        return pd.DataFrame(columns=workers_df.columns.tolist() + ["ai_score"])
     return recommend(worker_row=job_row, jobs_df=candidates, k=k, n=n)
