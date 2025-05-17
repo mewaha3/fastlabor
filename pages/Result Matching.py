@@ -22,7 +22,6 @@ if active_job_idx is None and active_seeker_idx is None:
 
 # -----------------------------------------------------------------
 # Helper: load sheet to df
-@st.cache_data(show_spinner=False, ttl=300)
 def _sheet_df(name: str) -> pd.DataFrame:
     SCOPE = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -39,15 +38,11 @@ def _sheet_df(name: str) -> pd.DataFrame:
     return df
 
 # -----------------------------------------------------------------
-# Import matching functions directly (no cache)
-from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend
-
-# -----------------------------------------------------------------
 # Load & encode data
-jobs_raw    = _sheet_df("post_job")
-seekers_raw = _sheet_df("find_job")
-jobs_df     = encode_job_df(jobs_raw)
-seekers_df  = encode_worker_df(seekers_raw)
+from matching import encode_job_df, encode_worker_df, recommend_seekers, recommend  # Import matching.py functions
+
+jobs_df = encode_job_df(_sheet_df("post_job"))
+seekers_df = encode_worker_df(_sheet_df("find_job"))
 
 # -----------------------------------------------------------------
 # Utility: compute avg salary
@@ -78,12 +73,8 @@ if active_job_idx is not None:
     job_row_encoded = jobs_df.iloc[active_job_idx]
     top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
 
-    if top5.empty:
-        st.warning("❗ ไม่พบผู้สมัครที่ตรงกับประเภทงานนี้เลย กรุณาเลือกประเภทงานใหม่หรือตรวจสอบข้อมูล")
-        st.stop()
-
     raw_seek = _sheet_df("find_job")
-    raw_jobs_df = _sheet_df("post_job")
+    raw_jobs_df = _sheet_df("post_job")  # Load post_job data here
 
     priority = {}
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
@@ -95,8 +86,7 @@ if active_job_idx is not None:
         time = f"{raw.start_time} – {raw.end_time}"
         loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
         sal = avg_salary(raw)
-        score = getattr(rec, "ai_score", None)
-        col1, col2 = st.columns([4, 2])
+        col1, col2 = st.columns([4, 1])
         with col1:
             st.markdown(f"**Employee No.{rank}**")
             st.markdown(f"- **Name**: {name}")
@@ -107,17 +97,18 @@ if active_job_idx is not None:
             st.markdown(f"- **Location**: {loc}")
             st.markdown(f"- **Salary**: {sal}")
         with col2:
-            if score is not None:
-                st.markdown(f"**AI Score:** {score:.2f}")
             priority[rank] = st.selectbox("Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}")
 
     if st.button("✅ Confirm Matches", use_container_width=True):
-        ws, headers = _get_match_ws()
-        headers_in_sheet = [h.lower().strip() for h in headers]
+        ws_tuple = _get_match_ws()
+        ws = ws_tuple[0]
+        headers_in_sheet = [h.lower().strip() for h in ws_tuple[1]]  # Get Header from Sheet and make it lowercase and without spaces
 
         match_data = []
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
+            # Find matching raw seeker
             raw_seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
+            # Find matching raw job to get salary
             raw_job = raw_jobs_df[raw_jobs_df.job_id == job_row_encoded.job_id].iloc[0]
             job_salary = raw_job.get("salary", "")
 
@@ -131,13 +122,16 @@ if active_job_idx is not None:
 
         if match_data:
             df_to_upload = pd.DataFrame(match_data)
-            cols_to_upload = [col.lower().strip() for col in df_to_upload.columns]
-            cols_existing = [c for c in cols_to_upload if c in headers_in_sheet]
+            cols_to_upload = [col.lower().strip() for col in df_to_upload.columns]  # Adjust column names to upload
 
-            df_upload = df_to_upload[df_to_upload.columns[df_to_upload.columns.str.lower().str.strip().isin(cols_existing)]]
+            # Create DataFrame with only columns that exist in Sheet and sorted by order in Sheet
+            cols_to_upload_existing = [col for col in cols_to_upload if col in headers_in_sheet]
+            df_upload = df_to_upload[df_to_upload.columns[df_to_upload.columns.str.lower().str.strip().isin(cols_to_upload_existing)]]
             df_upload = df_upload[sorted(df_upload.columns, key=lambda col: headers_in_sheet.index(col.lower().strip()))]
 
+            # Find the last row with data to append
             last_row = len(ws.get_all_values()) + 1
+            # Try writing data directly with gspread
             data_to_write = df_upload.values.tolist()
             cell_range = f"A{last_row}:{chr(ord('A') + len(df_upload.columns) - 1)}{last_row + len(data_to_write) - 1}"
             ws.update(cell_range, data_to_write)
@@ -151,10 +145,6 @@ elif active_seeker_idx is not None:
     seeker_row_encoded = seekers_df.iloc[active_seeker_idx]
     top5 = recommend(seeker_row_encoded, jobs_df, n=5)
 
-    if top5.empty:
-        st.warning("❗ ไม่พบงานที่ตรงกับความต้องการของคุณเลย กรุณาตรวจสอบประเภทงานหรือข้อมูลของคุณ")
-        st.stop()
-
     raw_jobs = _sheet_df("post_job")
 
     st.subheader("📋 งานแนะนำสำหรับคุณ")
@@ -166,15 +156,12 @@ elif active_seeker_idx is not None:
         time = f"{raw.start_time} – {raw.end_time}"
         loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
         sal = avg_salary(raw)
-        score = getattr(rec, "ai_score", None)
         st.markdown(f"**Job No.{rank}**")
         st.markdown(f"- **Job Type**: {job_type}")
         st.markdown(f"- **Date**: {date}")
         st.markdown(f"- **Time**: {time}")
         st.markdown(f"- **Location**: {loc}")
         st.markdown(f"- **Salary**: {sal} THB")
-        if score is not None:
-            st.markdown(f"- **AI Score:** {score:.2f}")
 
 # -----------------------------------------------------------------
 st.divider()
