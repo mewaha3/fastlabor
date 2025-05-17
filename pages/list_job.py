@@ -56,7 +56,7 @@ with tab1:
     if df_post.empty:
         st.info("คุณยังไม่มีโพสต์งาน")
     else:
-        for _, row in df_post.iterrows():
+        for idx, row in df_post.iterrows():
             st.divider()
             job_id = row.get("job_id", "")
             st.markdown(f"### Job ID: {job_id}")
@@ -79,8 +79,7 @@ with tab1:
 | Time     | {start} – {end}      |
 | Location | {addr}               |
 | Salary   | {salary}             |
-"""
-            )
+""")
             if st.button("🔍 ดูการจับคู่", key=f"post_{job_id}"):
                 st.session_state["selected_job_id"] = job_id
                 st.session_state.pop("seeker_idx", None)
@@ -91,7 +90,7 @@ with tab2:
     if df_find.empty:
         st.info("คุณยังไม่มีการค้นหางาน")
     else:
-        for _, row in df_find.iterrows():
+        for idx, row in df_find.iterrows():
             st.divider()
             find_id = row.get("findjob_id", "")
             st.markdown(f"### Find ID: {find_id}")
@@ -113,12 +112,13 @@ with tab2:
 | Location      | {addr}             |
 | Start Salary  | {min_sal}          |
 | Range Salary  | {max_sal}          |
-"""
-            )
+""")
+            if st.button("🔍 ดูการจับคู่", key=f"find_{find_id}"):
+                st.session_state["seeker_idx"] = idx
+                st.session_state.pop("selected_job_id", None)
+                st.switch_page("pages/find_job_matching.py")
 
 # 7) Back to Home
 st.divider()
 if st.button("🏠 หน้าแรก"):
     st.switch_page("pages/home.py")
-
-
