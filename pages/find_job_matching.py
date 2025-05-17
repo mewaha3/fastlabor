@@ -100,7 +100,6 @@ for _, row in my_df.iterrows():
         if st.button("Accept", key=f"accept_{fid}"):
             _update_status(fid, "Accepted")
 
-    st.markdown("---")
 
 # ------------------------------------------------------------------
 
