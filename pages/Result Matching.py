@@ -99,7 +99,8 @@ if active_job_idx is not None:
         time = f"{raw.start_time} – {raw.end_time}"
         loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
         sal = avg_salary(raw)
-        col1, col2 = st.columns([4, 1])
+        score = getattr(rec, "ai_score", None)
+        col1, col2 = st.columns([4, 2])
         with col1:
             st.markdown(f"**Employee No.{rank}**")
             st.markdown(f"- **Name**: {name}")
@@ -110,6 +111,7 @@ if active_job_idx is not None:
             st.markdown(f"- **Location**: {loc}")
             st.markdown(f"- **Salary**: {sal}")
         with col2:
+            st.markdown(f"**AI Score:** {score:.2f}")
             priority[rank] = st.selectbox("Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}")
 
     if st.button("✅ Confirm Matches", use_container_width=True):
@@ -167,12 +169,14 @@ elif active_seeker_idx is not None:
         time = f"{raw.start_time} – {raw.end_time}"
         loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
         sal = avg_salary(raw)
+        score = getattr(rec, "ai_score", None)
         st.markdown(f"**Job No.{rank}**")
         st.markdown(f"- **Job Type**: {job_type}")
         st.markdown(f"- **Date**: {date}")
         st.markdown(f"- **Time**: {time}")
         st.markdown(f"- **Location**: {loc}")
         st.markdown(f"- **Salary**: {sal} THB")
+        st.markdown(f"- **AI Score:** {score:.2f}")
 
 # -----------------------------------------------------------------
 st.divider()
