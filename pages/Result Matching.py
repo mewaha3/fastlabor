@@ -96,7 +96,6 @@ if active_job_idx is not None:
             st.markdown(f"- **Time**: {time}")
             st.markdown(f"- **Location**: {loc}")
             st.markdown(f"- **Salary**: {sal}")
-            st.markdown(f"**AI Score:** {row['ai_score']:.2f}  ")
         with col2:
             priority[rank] = st.selectbox("Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}")
 
