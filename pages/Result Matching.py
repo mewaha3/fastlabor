@@ -1,10 +1,8 @@
 import streamlit as st
 import pandas as pd
 import json
-from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
-from gspread_dataframe import set_with_dataframe
 
 # 1) Page config & guard
 st.set_page_config(page_title="Result Matching | FAST LABOR", layout="centered")
@@ -83,19 +81,22 @@ if selected_job_id is not None:
     job_row_encoded = job_rows.iloc[0]
 
     top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
-    raw_seek = _sheet_df("find_job")
-    raw_jobs_df = _sheet_df("post_job")
+    # filter out duplicate emails
+    top5 = top5.drop_duplicates(subset="email").reset_index(drop=True)
 
+    raw_seek   = _sheet_df("find_job")
+    raw_jobs   = _sheet_df("post_job")
     priorities = {}
+
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
         seeker = raw_seek[raw_seek.email == rec.email].iloc[0]
-        name = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
+        name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
         gender = seeker.gender or "-"
-        date = seeker.job_date or "-"
-        time = f"{seeker.start_time} – {seeker.end_time}"
-        loc = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
-        sal = avg_salary(seeker)
+        date   = seeker.job_date or "-"
+        time   = f"{seeker.start_time} – {seeker.end_time}"
+        loc    = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
+        sal    = avg_salary(seeker)
 
         col1, col2 = st.columns([4,1])
         with col1:
@@ -110,7 +111,7 @@ if selected_job_id is not None:
             st.markdown(f"- **AI Score**: {rec.ai_score:.2f}")
         with col2:
             priorities[rank] = st.selectbox(
-                f"Priority", [1,2,3,4,5], index=rank-1, key=f"prio_{rank}"
+                "Priority", [1,2,3,4,5], index=rank-1, key=f"prio_{rank}"
             )
 
     if st.button("✅ Confirm Matches", use_container_width=True):
@@ -120,7 +121,7 @@ if selected_job_id is not None:
         match_data = []
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
             seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
-            job = raw_jobs_df[raw_jobs_df.job_id == selected_job_id].iloc[0]
+            job    = raw_jobs[raw_jobs.job_id == selected_job_id].iloc[0]
             job_salary = job.get("salary", "")
 
             row = seeker.copy()
@@ -158,11 +159,11 @@ elif active_seeker_idx is not None:
     st.subheader("📋 งานที่ AI แนะนำสำหรับคุณ")
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
-        job = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
-        date = job.job_date or "-"
-        time = f"{job.start_time} – {job.end_time}"
-        loc  = f"{job.province}/{job.district}/{job.subdistrict}"
-        sal  = avg_salary(job)
+        job   = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
+        date  = job.job_date or "-"
+        time  = f"{job.start_time} – {job.end_time}"
+        loc   = f"{job.province}/{job.district}/{job.subdistrict}"
+        sal   = avg_salary(job)
 
         st.markdown(f"**Job No.{rank}**")
         st.markdown(f"- **Job Type**: {rec.job_type}")
