@@ -84,6 +84,10 @@ with tab1:
                 st.session_state["selected_job_id"] = job_id
                 st.session_state.pop("seeker_idx", None)
                 st.switch_page("pages/Result Matching.py")
+            with col_b:
+                if st.button("📊 ดูสถานะการจับคู่", key=f"status_{find_id}"):
+                    st.session_state["findjob_status_id"] = find_id
+                    st.switch_page("pages/status_matching.py")
 
 with tab2:
     st.subheader("🔍 รายการที่ฉันค้นหางาน")
@@ -120,10 +124,6 @@ with tab2:
                     st.session_state["seeker_idx"] = idx
                     st.session_state.pop("selected_job_id", None)
                     st.switch_page("pages/find_job_matching.py")
-            with col_a:
-                if st.button("📊 ดูสถานะการจับคู่", key=f"status_{find_id}"):
-                    st.session_state["findjob_status_id"] = find_id
-                    st.switch_page("pages/status_matching.py")
 
 # 7) Back to Home
 st.divider()
