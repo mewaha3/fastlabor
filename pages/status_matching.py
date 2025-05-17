@@ -10,83 +10,61 @@ st.markdown("""
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <div><strong>FAST LABOR</strong></div>
     <div>
-        <a href="pages/find_job_matching.py" style="margin-right: 20px;">Find Job</a>
-        <a href="pages/list_job.py" style="margin-right: 20px;">My Job</a>
-        <a href="pages/profile.py" style="background-color: black; color: white; padding: 5px 10px; border-radius: 4px;">Profile</a>
+        <a href="/pages/find_job_matching.py" style="margin-right: 20px;">Find Job</a>
+        <a href="/pages/list_job.py" style="margin-right: 20px;">My Job</a>
+        <a href="/pages/profile.py" style="background-color: black; color: white; padding: 5px 10px; border-radius: 4px;">Profile</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 st.title("📊 Status Matching")
 
-# 2) Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    json.loads(st.secrets["gcp"]["credentials"]), scope
-)
+# 2) Get job_id from session
+job_id = st.session_state.get("status_job_id")
+if not job_id:
+    st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
+    st.stop()
+
+# 3) Connect to Google Sheets
+scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
 gc = gspread.authorize(creds)
 sh = gc.open("fastlabor")
 
-# 3) Load match_results sheet
+# 4) Load match_results sheet
 ws = sh.worksheet("match_results")
 records = ws.get_all_records()
 df = pd.DataFrame(records)
 
-# 4) Helper: status color
-def get_status_color(status: str) -> str:
-    s = (status or "").lower()
-    return "green" if s == "accepted" else \
-           "orange" if s == "on queue" else \
-           "red" if s == "declined" else \
-           "gray"
+# 5) Filter to only this job_id
+status_df = df[df["job_id"] == job_id].reset_index(drop=True)
 
-if df.empty:
-    st.info("ยังไม่มีข้อมูลแมตช์")
+if status_df.empty:
+    st.info(f"❌ ไม่พบการจับคู่สำหรับ Job ID = {job_id}")
 else:
-    st.markdown("---")
-    # Select only the first 5 results
-    top_5_matches = df.head(5)  # This limits the DataFrame to the first 5 rows
-    
-    for index, row in top_5_matches.iterrows():
-        employee_no = index + 1
-        name = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip() or '-'
-        gender = row.get('gender', '') or '-'
-        job_type = row.get('job_type', '') or ''
-        date = row.get('job_date', '') or '-'
-        time = f"{row.get('start_time', '') or ''} – {row.get('end_time', '') or ''}"
-        location = f"{row.get('province', '')}/{row.get('district', '')}/{row.get('subdistrict', '')}".rstrip('/') or '-'
-        salary = row.get('job_salary', '') or '-'
-        priority = row.get('priority', '') or '-'
-        status = row.get('status', '') or 'No Status'
-        find_job_id = row.get('findjob_id', '') or ''
-        job_detail_data = row.to_dict() # ดึงข้อมูลทั้งหมดของแถวเพื่อส่งไปยังหน้า Job Detail
+    st.markdown(f"### Job ID: {job_id}")
+    # Show each applicant
+    for idx, row in status_df.iterrows():
+        emp_no = idx + 1
+        name     = f"{row.get('first_name','')} {row.get('last_name','')}".strip() or '-'
+        gender   = row.get('gender','-')
+        priority = row.get('priority','-')
+        status   = row.get('status','-')
+        # color mapping
+        c = status.lower()
+        color = "green" if c=="accepted" else "orange" if c=="on queue" else "red" if c=="declined" else "gray"
 
-        st.markdown(f"**Employee No.{employee_no}**")
+        st.markdown(f"**Employee No.{emp_no}**")
         st.markdown(f"- **Name:** {name}")
         st.markdown(f"- **Gender:** {gender}")
-        st.markdown(f"- **Job Type:** {job_type}")
-        st.markdown(f"- **Date:** {date}")
-        st.markdown(f"- **Time:** {time}")
-        st.markdown(f"- **Location:** {location}")
-        st.markdown(f"- **Salary:** {salary}")
         st.markdown(f"- **Priority:** {priority}")
 
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            color = get_status_color(status)
-            st.markdown(
-                f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>"
-                f"{status}"
-                f"</span>", unsafe_allow_html=True
-            )
-        with col2:
-            if status.lower() == "accepted":
-                if st.button("ดูรายละเอียด", key=f"job_detail_{find_job_id}"):
-                    st.session_state["selected_job"] = job_detail_data
-                    st.switch_page("pages/job_detail.py")
-
+        st.markdown(
+            f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>{status}</span>",
+            unsafe_allow_html=True
+        )
         st.markdown("---")
 
-# 5) Back to My Jobs button
+# 6) Back button
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
