@@ -113,10 +113,17 @@ with tab2:
 | Start Salary  | {min_sal}          |
 | Range Salary  | {max_sal}          |
 """)
-            if st.button("🔍 ดูการจับคู่", key=f"find_{find_id}"):
-                st.session_state["seeker_idx"] = idx
-                st.session_state.pop("selected_job_id", None)
-                st.switch_page("pages/find_job_matching.py")
+            # two buttons side by side
+            col_a, col_b = st.columns([1,1])
+            with col_a:
+                if st.button("🔍 ดูการจับคู่", key=f"find_{find_id}"):
+                    st.session_state["seeker_idx"] = idx
+                    st.session_state.pop("selected_job_id", None)
+                    st.switch_page("pages/find_job_matching.py")
+            with col_b:
+                if st.button("📊 ดูสถานะการจับคู่", key=f"status_{find_id}"):
+                    st.session_state["findjob_status_id"] = find_id
+                    st.switch_page("pages/status_matching.py")
 
 # 7) Back to Home
 st.divider()
