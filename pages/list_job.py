@@ -14,20 +14,17 @@ st.title("📄 My Jobs")
 
 # 2) Connect to Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-if "gcp" in st.secrets:
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        json.loads(st.secrets["gcp"]["credentials"]), scope
-    )
-else:
-    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+creds_info = json.loads(st.secrets.get("gcp", {}).get("credentials", "{}"))
+creds = (
+    ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
+    if creds_info
+    else ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
+)
 gc = gspread.authorize(creds)
-sh = gc = gspread.authorize(creds)
 spreadsheet = gc.open("fastlabor")
 
 # 3) Helper: load sheet into DataFrame
-
 def load_df(sheet_name: str) -> pd.DataFrame:
-    """Load and return fresh DataFrame from Google Sheet."""
     ws = spreadsheet.worksheet(sheet_name)
     vals = ws.get_all_values()
     df = pd.DataFrame(vals[1:], columns=vals[0])
@@ -57,9 +54,9 @@ with tab1:
     if df_post.empty:
         st.info("คุณยังไม่มีโพสต์งาน")
     else:
-        for idx, row in df_post.iterrows():
+        for _, row in df_post.iterrows():
             st.divider()
-            job_id = row.get("job_id", f"{idx+1}")
+            job_id = row.get("job_id") or ""
             st.markdown(f"### Job ID: {job_id}")
             jtype = row.get("job_type", "-")
             detail = row.get("job_detail", "-")
@@ -68,12 +65,10 @@ with tab1:
             end = row.get("end_time", "-")
             addr = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
             # salary logic
-            if "start_salary" in row and row.start_salary is not None or \
-               "range_salary" in row and row.range_salary is not None:
+            if (row.get("start_salary") or row.get("range_salary")):
                 salary = f"{row.get('start_salary','-')} – {row.get('range_salary','-')}"
             else:
                 salary = row.get("salary", "-")
-            # Display table
             st.markdown(f"""
 | ฟิลด์       | รายละเอียด                    |
 |------------|-------------------------------|
@@ -85,19 +80,20 @@ with tab1:
 | Salary     | {salary}                      |
 """
             )
-            if st.button("🔍 ดูการจับคู่", key=f"post_{idx}"):
-                st.session_state.job_idx = idx
+            if st.button("🔍 ดูการจับคู่", key=f"post_{job_id}"):
+                # store selected job_id instead of index
+                st.session_state["selected_job_id"] = job_id
                 st.session_state.pop("seeker_idx", None)
-                st.switch_page("pages/Result Matching.py")
+                st.switch_page("Result Matching")
 
 with tab2:
     st.subheader("🔍 รายการที่ฉันค้นหางาน")
     if df_find.empty:
         st.info("คุณยังไม่มีการค้นหางาน")
     else:
-        for idx, row in df_find.iterrows():
+        for _, row in df_find.iterrows():
             st.divider()
-            find_id = row.get("findjob_id", f"{idx+1}")
+            find_id = row.get("findjob_id") or ""
             st.markdown(f"### Find ID: {find_id}")
             jtype = row.get("job_type", "-")
             skill = row.get("skills", "-")
@@ -110,7 +106,7 @@ with tab2:
             st.markdown(f"""
 | ฟิลด์          | รายละเอียด              |
 |---------------|-------------------------|
-| Job Type   | {jtype}                        |
+| Job Type      | {jtype}                |
 | Skill         | {skill}                |
 | Date          | {date}                 |
 | Time          | {start} – {end}        |
@@ -122,4 +118,4 @@ with tab2:
 
 # 7) Back to Home
 st.divider()
-st.page_link(page="pages/home.py", label="🏠 หน้าแรก")
+st.page_link(page="home", label="🏠 หน้าแรก")
