@@ -133,11 +133,13 @@ if selected_job_id is not None:
             job      = raw_jobs[raw_jobs.job_id == selected_job_id].iloc[0]
             job_sal  = job.get("salary", "")
             row = seeker.copy()
-            row["priority"]    = priorities.get(rank,1)
-            row["status"]      = "on queue"
-            row["find_job_id"] = rec.find_job_id if "find_job_id" in rec._fields else ""
-            row["job_salary"]  = job_sal
-            row["ai_score"]    = rec.ai_score
+            # **ตรงนี้ เพิ่ม job_id ลงในแต่ละแถว**
+            row["job_id"]       = selected_job_id
+            row["priority"]     = priorities.get(rank,1)
+            row["status"]       = "on queue"
+            row["find_job_id"]  = rec.find_job_id if "find_job_id" in rec._fields else ""
+            row["job_salary"]   = job_sal
+            row["ai_score"]     = rec.ai_score
             match_data.append(row)
 
         if match_data:
