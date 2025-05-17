@@ -13,13 +13,15 @@ if not st.session_state.get("logged_in", False):
 st.title("📄 My Jobs")
 
 # 2) Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
 creds_info = json.loads(st.secrets.get("gcp", {}).get("credentials", "{}"))
-creds = (
-    ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-    if creds_info
-    else ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
-)
+if creds_info:
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
+else:
+    creds = ServiceAccountCredentials.from_json_keyfile_name("pages/credentials.json", scope)
 gc = gspread.authorize(creds)
 spreadsheet = gc.open("fastlabor")
 
@@ -56,32 +58,30 @@ with tab1:
     else:
         for _, row in df_post.iterrows():
             st.divider()
-            job_id = row.get("job_id") or ""
+            job_id = row.get("job_id", "")
             st.markdown(f"### Job ID: {job_id}")
             jtype = row.get("job_type", "-")
             detail = row.get("job_detail", "-")
             date = row.get("job_date", "-")
             start = row.get("start_time", "-")
             end = row.get("end_time", "-")
-            addr = row.get("job_address") or f"{row['province']}/{row['district']}/{row['subdistrict']}"
-            # salary logic
-            if (row.get("start_salary") or row.get("range_salary")):
+            addr = row.get("job_address") or f"{row.get('province','')}/{row.get('district','')}/{row.get('subdistrict','')}"
+            if row.get("start_salary") or row.get("range_salary"):
                 salary = f"{row.get('start_salary','-')} – {row.get('range_salary','-')}"
             else:
                 salary = row.get("salary", "-")
             st.markdown(f"""
-| ฟิลด์       | รายละเอียด                    |
-|------------|-------------------------------|
-| Job Type   | {jtype}                        |
-| Detail     | {detail}                      |
-| Date       | {date}                        |
-| Time       | {start} – {end}               |
-| Location   | {addr}                        |
-| Salary     | {salary}                      |
+| ฟิลด์     | รายละเอียด            |
+|----------|-----------------------|
+| Job Type | {jtype}               |
+| Detail   | {detail}             |
+| Date     | {date}               |
+| Time     | {start} – {end}      |
+| Location | {addr}               |
+| Salary   | {salary}             |
 """
             )
             if st.button("🔍 ดูการจับคู่", key=f"post_{job_id}"):
-                # store selected job_id instead of index
                 st.session_state["selected_job_id"] = job_id
                 st.session_state.pop("seeker_idx", None)
                 st.switch_page("Result Matching")
@@ -93,29 +93,29 @@ with tab2:
     else:
         for _, row in df_find.iterrows():
             st.divider()
-            find_id = row.get("findjob_id") or ""
+            find_id = row.get("findjob_id", "")
             st.markdown(f"### Find ID: {find_id}")
             jtype = row.get("job_type", "-")
             skill = row.get("skills", "-")
             date = row.get("job_date", "-")
             start = row.get("start_time", "-")
             end = row.get("end_time", "-")
-            addr = f"{row['province']}/{row['district']}/{row['subdistrict']}"
+            addr = f"{row.get('province','')}/{row.get('district','')}/{row.get('subdistrict','')}"
             min_sal = row.get("start_salary") or '-'
             max_sal = row.get("range_salary") or '-'
             st.markdown(f"""
-| ฟิลด์          | รายละเอียด              |
-|---------------|-------------------------|
-| Job Type      | {jtype}                |
-| Skill         | {skill}                |
-| Date          | {date}                 |
-| Time          | {start} – {end}        |
-| Location      | {addr}                 |
-| Start Salary  | {min_sal}              |
-| Range Salary  | {max_sal}              |
+| ฟิลด์         | รายละเอียด         |
+|---------------|---------------------|
+| Job Type      | {jtype}            |
+| Skill         | {skill}            |
+| Date          | {date}             |
+| Time          | {start} – {end}    |
+| Location      | {addr}             |
+| Start Salary  | {min_sal}          |
+| Range Salary  | {max_sal}          |
 """
             )
 
 # 7) Back to Home
 st.divider()
-st.page_link(page="home", label="🏠 หน้าแรก")
+st.page_link(page="Home", label="🏠 หน้าแรก")
