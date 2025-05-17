@@ -4,93 +4,79 @@ import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 1) Page Config
-st.set_page_config(page_title="Find Job Matches | FAST LABOR", layout="centered")
+# 1) Page config
+st.set_page_config(page_title="My Matches | FAST LABOR", layout="centered")
 
-# Header & Navigation
-st.markdown("""
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <div><strong>FAST LABOR</strong></div>
-    <div>
-        <a href="/pages/find_job.py" style="margin-right: 20px;">Find Job</a>
-        <a href="/pages/list_job.py" style="margin-right: 20px;">My Job</a>
-        <a href="/pages/profile.py" style="background-color: black; color: white; padding: 5px 10px; border-radius: 4px;">Profile</a>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Title
-st.markdown("## Find Job Matches")
-st.markdown("เลือก Accept/Decline เพื่ออัปเดตสถานะการจับคู่ใน Google Sheets")
-
-# Ensure logged in
-logged_in_email = st.session_state.get("email")
-if not logged_in_email:
+# 2) Ensure user is logged in
+user_email = st.session_state.get("email")
+if not user_email:
     st.error("❌ โปรดล็อกอินก่อนดูการจับคู่")
     st.stop()
 
+st.title("🔍 รายการการจับคู่ของฉัน")
+
 # ------------------------------------------------------------------
-# Helper: load sheet to DataFrame
+# Helper: load a sheet into a DataFrame
 # ------------------------------------------------------------------
-def _sheet_df(name: str) -> pd.DataFrame:
-    SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
-    gc = gspread.authorize(creds)
-    ws = gc.open("fastlabor").worksheet(name)
-    vals = ws.get_all_values()
-    df = pd.DataFrame(vals[1:], columns=vals[0])
+def _sheet_df(sheet_name: str) -> pd.DataFrame:
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
+    client = gspread.authorize(creds)
+    ws = client.open("fastlabor").worksheet(sheet_name)
+    data = ws.get_all_values()
+    df = pd.DataFrame(data[1:], columns=data[0])
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df
 
 # ------------------------------------------------------------------
-# Helper: update status in match_results sheet (column O)
+# Helper: update status in match_results (column 'status')
 # ------------------------------------------------------------------
-def _update_match_status(find_job_id: str, status: str):
-    if status not in ["Accepted", "Declined"]:
-        st.error("❌ สถานะต้องเป็น 'Accepted' หรือ 'Declined'")
+def _update_status(findjob_id: str, new_status: str):
+    if new_status not in ("Accepted", "Declined"):
+        st.error("❌ สถานะต้องเป็น Accepted หรือ Declined")
         return
-    SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
-    gc = gspread.authorize(creds)
-    ws = gc.open("fastlabor").worksheet("match_results")
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
+    client = gspread.authorize(creds)
+    ws = client.open("fastlabor").worksheet("match_results")
     df = _sheet_df("match_results")
     try:
-        row_idx = df[df["findjob_id"] == find_job_id].index[0] + 2  # +2 for header row
-        ws.update(f"O{row_idx}", status)
-        st.success(f"✅ อัปเดตสถานะ findjob_id={find_job_id} → {status}")
+        idx = df.index[df["findjob_id"] == findjob_id][0] + 2  # +2 for header and 0-based
+        # find column index for 'status'
+        header = df.columns.tolist()
+        col_num = header.index("status") + 1  # 1-based
+        col_letter = chr(ord("A") + col_num - 1)
+        ws.update(f"{col_letter}{idx}", new_status)
+        st.success(f"อัปเดต {findjob_id} → {new_status}")
     except IndexError:
-        st.error(f"❌ ไม่พบ findjob_id={find_job_id} ใน match_results")
+        st.error(f"❌ ไม่พบ findjob_id = {findjob_id}")
     except Exception as e:
-        st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+        st.error(f"❌ เกิดข้อผิดพลาดในการอัปเดต: {e}")
 
 # ------------------------------------------------------------------
-# Load & display all matches for this user (no removal of old rows)
+# Load match_results and filter for this user
 # ------------------------------------------------------------------
-match_df = _sheet_df("match_results")
-user_matches = match_df[match_df["email"] == logged_in_email]
+matches = _sheet_df("match_results")
+my_matches = matches[matches["email"] == user_email]
 
-if user_matches.empty:
-    st.info("❌ ไม่มีการจับคู่สำหรับบัญชีนี้")
+if my_matches.empty:
+    st.info("❌ ยังไม่มีรายการจับคู่สำหรับคุณ")
 else:
-    for _, row in user_matches.iterrows():
-        find_id = row["findjob_id"]
-        st.markdown(f"### Find Job ID: {find_id}")
-        st.write(f"- ประเภทงาน: {row.get('job_type','-')}")
-        st.write(f"- รายละเอียด: {row.get('job_detail','-')}")
-        st.write(f"- วันเวลา: {row.get('job_date','-')} | {row.get('start_time','-')}–{row.get('end_time','-')}")
-        st.write(f"- สถานที่: {row.get('province','-')}/{row.get('district','-')}/{row.get('subdistrict','-')}")
-        st.write(f"- ค่าจ้าง: {row.get('job_salary','-')} THB")
-        st.write(f"- สถานะปัจจุบัน: {row.get('status','-')}")
+    for _, row in my_matches.iterrows():
+        fid = row["findjob_id"]
+        st.markdown(f"**Find Job ID:** `{fid}`")
+        # Buttons
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Decline", key=f"decline_{find_id}"):
-                _update_match_status(find_id, "Declined")
+            if st.button("Accept", key=f"accept_{fid}"):
+                _update_status(fid, "Accepted")
+                st.experimental_rerun()
         with col2:
-            if st.button("Accept", key=f"accept_{find_id}"):
-                _update_match_status(find_id, "Accepted")
+            if st.button("Decline", key=f"decline_{fid}"):
+                _update_status(fid, "Declined")
+                st.experimental_rerun()
         st.markdown("---")
 
-# Back to My Jobs
-st.divider()
+# 4) Back button
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
