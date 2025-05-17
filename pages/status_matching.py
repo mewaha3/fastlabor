@@ -26,39 +26,29 @@ if not job_id:
     st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
     st.stop()
 
-# 3) Load Google Sheets data
+# 3) Load raw data
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    json.loads(st.secrets["gcp"]["credentials"]), scope
-)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), scope)
 gc = gspread.authorize(creds)
-# Load raw sheets
-ws_post = gc.open("fastlabor").worksheet("post_job")
-raw_jobs = pd.DataFrame(ws_post.get_all_records())
-ws_find = gc.open("fastlabor").worksheet("find_job")
-raw_seekers = pd.DataFrame(ws_find.get_all_records())
-
-# 4) Encode & run matching to get top-5 recommendations
-jobs_df     = encode_job_df(raw_jobs)
-seekers_df  = encode_worker_df(raw_seekers)
-job_row_idx = jobs_df.index[jobs_df["job_id"] == job_id].tolist()
-if not job_row_idx:
-    st.error(f"❌ ไม่พบ Job ID = {job_id} ในข้อมูลโพสต์")
-    st.stop()
-job_row_encoded = jobs_df.iloc[job_row_idx[0]]
-top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
-
-# 5) Load statuses from match_results sheet if any
-ws_status = gc.open("fastlabor").worksheet("match_results")
-status_df = pd.DataFrame(ws_status.get_all_records())
+# raw sheets
+raw_jobs     = pd.DataFrame(gc.open("fastlabor").worksheet("post_job").get_all_records())
+raw_seekers  = pd.DataFrame(gc.open("fastlabor").worksheet("find_job").get_all_records())
+# status sheet
+status_df    = pd.DataFrame(gc.open("fastlabor").worksheet("match_results").get_all_records())
 status_df["findjob_id"] = status_df["findjob_id"].astype(str)
 
-# helper to pick status
-def lookup_status(findjob_id: str) -> str:
-    rec = status_df[status_df["findjob_id"] == findjob_id]
-    return rec.iloc[0]["status"] if not rec.empty else "on queue"
+# 4) Encode & compute top-5 recommendations
+jobs_df    = encode_job_df(raw_jobs)
+seekers_df = encode_worker_df(raw_seekers)
+# find encoded job row
+idxs = jobs_df.index[jobs_df["job_id"] == job_id].tolist()
+if not idxs:
+    st.error(f"❌ ไม่พบ Job ID = {job_id} ในข้อมูลโพสต์")
+    st.stop()
+job_row_enc = jobs_df.loc[idxs[0]]
+top5 = recommend_seekers(job_row_enc, seekers_df, n=5)
 
-# helper for status color
+# 5) Status color helper
 def get_status_color(status: str) -> str:
     s = (status or "").lower()
     return "green" if s == "accepted" else \
@@ -66,20 +56,30 @@ def get_status_color(status: str) -> str:
            "red" if s == "declined" else \
            "gray"
 
-# 6) Display top-5 and their status
+# 6) Display Top-5 with their current status
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
 for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    seeker = raw_seekers[raw_seekers["email"] == rec.email].iloc[0]
-    name = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
-    status = lookup_status(str(rec.find_job_id))
-    color = get_status_color(status)
+    # find raw seeker row to get findjob_id and names
+    raw = raw_seekers[raw_seekers["email"] == rec.email]
+    if raw.empty:
+        continue
+    raw = raw.iloc[0]
+    find_id = str(raw["findjob_id"])
+    name    = f"{raw.get('first_name','')} {raw.get('last_name','')}".strip() or "-"
+    ai_score= rec.ai_score
+
+    # lookup status
+    stat_rec = status_df[status_df["findjob_id"] == find_id]
+    status   = stat_rec.iloc[0]["status"] if not stat_rec.empty else "on queue"
+    color    = get_status_color(status)
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
-    st.markdown(f"- **Job Type:** {rec.job_type}")
-    st.markdown(f"- **AI Score:** {rec.ai_score:.2f}")
+    st.markdown(f"- **AI Score:** {ai_score:.2f}")
     st.markdown(
-        f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>{status}</span>",
+        f"<span style='padding:4px 8px; background-color:{color}; color:white; border-radius:4px;'>"
+        f"{status}"
+        f"</span>",
         unsafe_allow_html=True
     )
     st.markdown("---")
