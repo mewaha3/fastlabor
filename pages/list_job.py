@@ -118,4 +118,6 @@ with tab2:
 
 # 7) Back to Home
 st.divider()
-st.page_link(page="Home", label="🏠 หน้าแรก")
+st.markdown(f"[🏠 หน้าแรก](/pages/home.py)")
+
+
