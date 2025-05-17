@@ -35,7 +35,7 @@ def _update_status(findjob_id: str, new_status: str):
     """Update the 'status' column in match_results for a given findjob_id."""
     if new_status not in ("Accepted", "Declined"):
         st.error("❌ สถานะต้องเป็น Accepted หรือ Declined")
-        return
+        return False
     SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(st.secrets["gcp"]["credentials"]), SCOPE)
     gc = gspread.authorize(creds)
@@ -44,22 +44,19 @@ def _update_status(findjob_id: str, new_status: str):
     df = _sheet_df("match_results")
     try:
         row_ix = df.index[df["findjob_id"] == findjob_id][0] + 2
-    except IndexError:
-        st.error(f"❌ ไม่พบ findjob_id = {findjob_id}")
-        return
-
-    try:
         col_ix = list(df.columns).index("status") + 1
-    except ValueError:
-        st.error("❌ ไม่พบคอลัมน์ 'status' ใน match_results")
-        return
+    except (IndexError, ValueError):
+        st.error(f"❌ ไม่สามารถอัปเดตสถานะ findjob_id={findjob_id}")
+        return False
 
     cell = f"{chr(ord('A') + col_ix - 1)}{row_ix}"
     try:
         ws.update_acell(cell, new_status)
         st.success(f"✅ อัปเดต findjob_id={findjob_id} → {new_status}")
+        return True
     except Exception as e:
         st.error(f"❌ เกิดข้อผิดพลาดระหว่างอัปเดต: {e}")
+        return False
 
 # ------------------------------------------------------------------
 # 3) Load & dedupe match_results for this user
@@ -74,13 +71,12 @@ my_df = (
     .drop_duplicates(subset="findjob_id", keep="first")
     .reset_index(drop=True)
 )
-
 if my_df.empty:
     st.info("❌ ไม่มีรายการจับคู่สำหรับบัญชีนี้")
     st.stop()
 
 # ------------------------------------------------------------------
-# 4) Display each match with Accept/Decline
+# 4) Display each match with Decline / Accept
 # ------------------------------------------------------------------
 for _, row in my_df.iterrows():
     fid = row["findjob_id"]
@@ -90,6 +86,7 @@ for _, row in my_df.iterrows():
     st.write(f"- วันเวลา: {row.get('job_date','-')} | {row.get('start_time','-')}–{row.get('end_time','-')}")
     st.write(f"- สถานที่: {row.get('province','-')}/{row.get('district','-')}/{row.get('subdistrict','-')}")
     st.write(f"- ค่าจ้าง: {row.get('job_salary','-')} THB/day")
+    st.write(f"- สถานะปัจจุบัน: **{row.get('status','-')}**")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -97,12 +94,16 @@ for _, row in my_df.iterrows():
             _update_status(fid, "Declined")
     with col2:
         if st.button("Accept", key=f"accept_{fid}"):
-            _update_status(fid, "Accepted")
+            success = _update_status(fid, "Accepted")
+            if success:
+                # ส่งข้อมูล row ทั้งหมดไปหน้า job_detail
+                st.session_state["selected_job"] = row.to_dict()
+                st.switch_page("pages/job_detail.py")
 
+    st.markdown("---")
 
 # ------------------------------------------------------------------
-
-
-st.divider()
+# 5) Back to My Jobs
+# ------------------------------------------------------------------
 if st.button("🔙 กลับหน้า My Jobs"):
     st.switch_page("pages/list_job.py")
