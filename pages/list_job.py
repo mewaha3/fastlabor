@@ -80,7 +80,7 @@ with tab1:
 | Location | {addr}               |
 | Salary   | {salary}             |
 """)
-col_a, col_b = st.columns(2)
+            col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("🔍 ดูการจับคู่", key=f"post_match_{job_id}"):
                     st.session_state["selected_job_id"] = job_id
@@ -90,6 +90,12 @@ col_a, col_b = st.columns(2)
                 if st.button("📊 ดูสถานะการจับคู่", key=f"post_status_{job_id}"):
                     st.session_state["status_job_id"] = job_id
                     st.switch_page("pages/status_matching.py")
+
+
+
+
+
+
 
 
 with tab2:
