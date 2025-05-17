@@ -117,6 +117,8 @@ with tab2:
             )
 
 # 7) Back to Home
-st.switch_page("pages/home.py")
+st.divider()
+if st.button("🏠 หน้าแรก"):
+    st.switch_page("pages/home.py")
 
 
