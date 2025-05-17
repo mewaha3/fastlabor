@@ -41,6 +41,7 @@ def _update_status(findjob_id: str, new_status: str):
     if new_status not in ("Accepted", "Declined"):
         st.error("❌ สถานะต้องเป็น Accepted หรือ Declined")
         return
+
     SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
@@ -63,22 +64,25 @@ def _update_status(findjob_id: str, new_status: str):
         st.error("❌ ไม่พบคอลัมน์ 'status' ใน match_results")
         return
 
+    # build A1 notation, then update that single cell
     cell = f"{chr(ord('A') + col_ix - 1)}{row_ix}"
-    ws.update(cell, new_status)
-    st.success(f"✅ อัปเดต findjob_id={findjob_id} → {new_status}")
+    try:
+        ws.update_acell(cell, new_status)
+        st.success(f"✅ อัปเดต findjob_id={findjob_id} → {new_status}")
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาดระหว่างอัปเดต: {e}")
 
 # ------------------------------------------------------------------
-# 3) Load match_results & filter by user, dedupe
+# 3) Load & dedupe match_results for this user
 # ------------------------------------------------------------------
 match_df = _sheet_df("match_results")
 if match_df.empty:
     st.info("📄 ไม่มีข้อมูล match_results")
     st.stop()
 
-# only rows for this user
-my_df = match_df[match_df["email"] == user_email]
-# dedupe on findjob_id, keep first
-my_df = my_df.drop_duplicates(subset="findjob_id", keep="first").reset_index(drop=True)
+my_df = match_df[match_df["email"] == user_email] \
+          .drop_duplicates(subset="findjob_id", keep="first") \
+          .reset_index(drop=True)
 
 if my_df.empty:
     st.info("❌ ไม่มีรายการจับคู่สำหรับบัญชีนี้")
@@ -105,9 +109,8 @@ for _, row in my_df.iterrows():
     with col2:
         if st.button("Accept", key=f"accept_{fid}"):
             _update_status(fid, "Accepted")
-            # เก็บ row ทั้งหมดไว้ใช้หน้า job_detail
-            st.session_state["selected_job"] = row.to_dict()
-            st.experimental_rerun()  # หรือ st.switch_page(...) ถ้าจะไปหน้าอื่น
+            # you could switch to details page or simply rerun
+            st.experimental_rerun()
 
     st.markdown("---")
 
