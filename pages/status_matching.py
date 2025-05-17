@@ -71,10 +71,9 @@ def avg_salary(raw: pd.Series) -> str:
 # 6) Render Top-5 + status
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
 for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    # rec.Index is the row in seekers_enc/raw_seekers
-    idx = rec.Index
-    seeker = raw_seekers.iloc[idx]
-    fid    = str(seeker["findjob_id"])  # the sheet’s ID
+    # หาแถว raw_seekers โดย match กับ rec.email
+    seeker = raw_seekers[raw_seekers["email"] == rec.email].iloc[0]
+    fid    = str(seeker["findjob_id"])  # ID ในชีต match_results
     name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
     gender = seeker.gender or "-"
     date   = seeker.job_date or "-"
@@ -84,7 +83,7 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
     ai     = rec.ai_score
     jtype  = rec.job_type or "-"
 
-    # lookup status by findjob_id only
+    # lookup status
     sr     = status_df[status_df["findjob_id"] == fid]
     status = sr.iloc[0]["status"] if not sr.empty else "on queue"
     color  = get_status_color(status)
@@ -105,11 +104,9 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         unsafe_allow_html=True
     )
 
-    # if accepted, show detail button
     if status.lower() == "accepted":
         if st.button("ดูรายละเอียดงาน", key=f"detail_{fid}"):
             job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
-            # pass both job + employee into session
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
                 "findjob_id": fid,
