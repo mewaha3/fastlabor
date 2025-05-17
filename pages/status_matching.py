@@ -20,7 +20,7 @@ st.markdown("""
 
 st.title("📊 Status Matching")
 
-# 2) Get job_id from session (เพื่อคำนวณ Top-5 แต่จะไม่ใช้สำหรับกรองสถานะ)
+# 2) Get job_id from session
 job_id = st.session_state.get("status_job_id")
 if not job_id:
     st.info("❌ กรุณากด ‘ดูสถานะการจับคู่’ จากหน้า My Jobs ก่อน")
@@ -34,15 +34,15 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(
 gc = gspread.authorize(creds)
 sh = gc.open("fastlabor")
 
-# 4) Load raw data
-raw_jobs    = pd.DataFrame(sh.worksheet("post_job").get_all_records())
-raw_seekers = pd.DataFrame(sh.worksheet("find_job").get_all_records())
+# 4) Load raw tables
+raw_jobs    = pd.DataFrame(sh.worksheet("post_job") .get_all_records())
+raw_seekers = pd.DataFrame(sh.worksheet("find_job") .get_all_records())
 status_df   = pd.DataFrame(sh.worksheet("match_results").get_all_records())
 
-# normalize the find_job_id column
-status_df["find_job_id"] = status_df["findjob_id"].astype(str)
+# ensure findjob_id column is string for matching
+status_df["findjob_id"] = status_df["findjob_id"].astype(str)
 
-# 5) Compute Top-5 seekers for this job
+# 5) Compute Top-5 seek ers
 jobs_enc    = encode_job_df(raw_jobs)
 seekers_enc = encode_worker_df(raw_seekers)
 idxs = jobs_enc.index[jobs_enc["job_id"] == job_id].tolist()
@@ -68,25 +68,26 @@ def avg_salary(raw: pd.Series) -> str:
     except:
         return "-"
 
-# 6) Display
+# 6) Render Top-5 + status
 st.markdown(f"### Job ID: {job_id} — Top 5 Matches")
 for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-    # หา raw seeker ตาม rec.find_job_id
-    fid     = str(getattr(rec, "find_job_id", ""))
-    seeker  = raw_seekers[raw_seekers["findjob_id"].astype(str) == fid].iloc[0]
-    name    = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
-    gender  = seeker.gender or "-"
-    jtype   = rec.job_type or "-"
-    date    = seeker.job_date or "-"
-    time    = f"{seeker.start_time} – {seeker.end_time}"
-    loc     = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
-    sal     = avg_salary(seeker)
-    ai      = rec.ai_score
+    # rec.Index is the row in seekers_enc/raw_seekers
+    idx = rec.Index
+    seeker = raw_seekers.iloc[idx]
+    fid    = str(seeker["findjob_id"])  # the sheet’s ID
+    name   = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
+    gender = seeker.gender or "-"
+    date   = seeker.job_date or "-"
+    time   = f"{seeker.start_time} – {seeker.end_time}"
+    loc    = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
+    sal    = avg_salary(seeker)
+    ai     = rec.ai_score
+    jtype  = rec.job_type or "-"
 
-    # กรองสถานะแค่ตาม find_job_id
-    sr      = status_df[status_df["find_job_id"] == fid]
-    status  = sr.iloc[0]["status"] if not sr.empty else "on queue"
-    color   = get_status_color(status)
+    # lookup status by findjob_id only
+    sr     = status_df[status_df["findjob_id"] == fid]
+    status = sr.iloc[0]["status"] if not sr.empty else "on queue"
+    color  = get_status_color(status)
 
     st.markdown(f"**Match No.{rank}**")
     st.markdown(f"- **Name:** {name}")
@@ -104,10 +105,11 @@ for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         unsafe_allow_html=True
     )
 
-    # ถ้า accepted ให้ปุ่มดูรายละเอียดงาน
-    if status.lower()=="accepted":
+    # if accepted, show detail button
+    if status.lower() == "accepted":
         if st.button("ดูรายละเอียดงาน", key=f"detail_{fid}"):
             job_raw = raw_jobs[raw_jobs["job_id"] == job_id].iloc[0]
+            # pass both job + employee into session
             st.session_state["selected_job"] = {
                 **job_raw.to_dict(),
                 "findjob_id": fid,
