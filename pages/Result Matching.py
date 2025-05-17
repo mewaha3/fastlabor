@@ -13,10 +13,10 @@ if not st.session_state.get("logged_in", False):
 
 st.title("🔍 AI Matching – ผลการจับคู่")
 
-active_job_idx: int | None = st.session_state.get("job_idx")
-active_seeker_idx: int | None = st.session_state.get("seeker_idx")
-
-if active_job_idx is None and active_seeker_idx is None:
+# 2) Retrieve selected_job_id (from My Jobs) and optional seeker_idx
+selected_job_id = st.session_state.get("selected_job_id")
+active_seeker_idx = st.session_state.get("seeker_idx")
+if selected_job_id is None and active_seeker_idx is None:
     st.info("กรุณากลับไปเลือกงาน/ผู้สมัครจากหน้า My Jobs ก่อนค่ะ")
     st.stop()
 
@@ -74,24 +74,30 @@ def _get_match_ws():
 # -----------------------------------------------------------------
 # 4) Employer view: show Top-5 seekers & choose priority
 # -----------------------------------------------------------------
-if active_job_idx is not None:
-    job_row_encoded = jobs_df.iloc[active_job_idx]
-    top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
+if selected_job_id is not None:
+    # find the selected job row by job_id
+    job_rows = jobs_df[jobs_df["job_id"] == selected_job_id]
+    if job_rows.empty:
+        st.error(f"ไม่พบงานที่มี Job ID = {selected_job_id}")
+        st.stop()
+    job_row_encoded = job_rows.iloc[0]
 
+    top5 = recommend_seekers(job_row_encoded, seekers_df, n=5)
     raw_seek = _sheet_df("find_job")
     raw_jobs_df = _sheet_df("post_job")
 
-    priority = {}
+    priorities = {}
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
-        raw = raw_seek[raw_seek.email == rec.email].iloc[0]
-        name = f"{raw.first_name} {raw.last_name}".strip() or "-"
-        gender = raw.gender or "-"
-        date = raw.job_date or "-"
-        time = f"{raw.start_time} – {raw.end_time}"
-        loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
-        sal = avg_salary(raw)
-        col1, col2 = st.columns([4, 1])
+        seeker = raw_seek[raw_seek.email == rec.email].iloc[0]
+        name = f"{seeker.first_name} {seeker.last_name}".strip() or "-"
+        gender = seeker.gender or "-"
+        date = seeker.job_date or "-"
+        time = f"{seeker.start_time} – {seeker.end_time}"
+        loc = f"{seeker.province}/{seeker.district}/{seeker.subdistrict}"
+        sal = avg_salary(seeker)
+
+        col1, col2 = st.columns([4,1])
         with col1:
             st.markdown(f"**Employee No.{rank}**")
             st.markdown(f"- **Name**: {name}")
@@ -103,8 +109,8 @@ if active_job_idx is not None:
             st.markdown(f"- **Salary**: {sal}")
             st.markdown(f"- **AI Score**: {rec.ai_score:.2f}")
         with col2:
-            priority[rank] = st.selectbox(
-                "Priority", [1, 2, 3, 4, 5], index=rank - 1, key=f"prio_{rank}"
+            priorities[rank] = st.selectbox(
+                f"Priority", [1,2,3,4,5], index=rank-1, key=f"prio_{rank}"
             )
 
     if st.button("✅ Confirm Matches", use_container_width=True):
@@ -113,30 +119,29 @@ if active_job_idx is not None:
 
         match_data = []
         for rank, rec in enumerate(top5.itertuples(index=False), start=1):
-            raw_seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
-            raw_job = raw_jobs_df[raw_jobs_df.job_id == job_row_encoded.job_id].iloc[0]
-            job_salary = raw_job.get("salary", "")
+            seeker = raw_seek[raw_seek.email == rec.email].iloc[0].to_dict()
+            job = raw_jobs_df[raw_jobs_df.job_id == selected_job_id].iloc[0]
+            job_salary = job.get("salary", "")
 
-            row = raw_seeker.copy()
-            row['priority'] = priority.get(rank, 1)
-            row['status'] = 'on queue'
-            row['find_job_id'] = top5.index[rank - 1]
-            row['job_salary'] = job_salary
-            row['ai_score'] = rec.ai_score
+            row = seeker.copy()
+            row["priority"]    = priorities.get(rank,1)
+            row["status"]      = "on queue"
+            row["find_job_id"] = rec.find_job_id if "find_job_id" in rec._fields else ""
+            row["job_salary"]  = job_salary
+            row["ai_score"]    = rec.ai_score
             match_data.append(row)
 
         if match_data:
-            df_to_upload = pd.DataFrame(match_data)
-            cols = [col.lower().strip() for col in df_to_upload.columns]
-            existing = [c for c in cols if c in headers_in_sheet]
-            df_upload = df_to_upload[df_to_upload.columns[df_to_upload.columns.str.lower().str.strip().isin(existing)]]
-            df_upload = df_upload[sorted(df_upload.columns, key=lambda c: headers_in_sheet.index(c.lower().strip()))]
+            df_up = pd.DataFrame(match_data)
+            cols  = [c.lower().strip() for c in df_up.columns]
+            exist = [c for c in cols if c in headers_in_sheet]
+            df_up = df_up[df_up.columns[df_up.columns.str.lower().str.strip().isin(exist)]]
+            df_up = df_up[sorted(df_up.columns, key=lambda c: headers_in_sheet.index(c.lower().strip()))]
 
-            last_row = len(ws.get_all_values()) + 1
-            data_to_write = df_upload.values.tolist()
-            end_col = chr(ord('A') + df_upload.shape[1] - 1)
-            cell_range = f"A{last_row}:{end_col}{last_row + len(data_to_write) - 1}"
-            ws.update(cell_range, data_to_write)
+            start_row = len(ws.get_all_values()) + 1
+            data = df_up.values.tolist()
+            end_col = chr(ord("A") + len(df_up.columns)-1)
+            ws.update(f"A{start_row}:{end_col}{start_row+len(data)-1}", data)
             st.success("🎉 บันทึกผลการจับคู่เรียบร้อยแล้ว!")
         else:
             st.info("ไม่มีรายการจับคู่ที่จะบันทึก")
@@ -150,17 +155,17 @@ elif active_seeker_idx is not None:
 
     raw_jobs = _sheet_df("post_job")
 
-    st.subheader("📋 งานแนะนำสำหรับคุณ")
+    st.subheader("📋 งานที่ AI แนะนำสำหรับคุณ")
     for rank, rec in enumerate(top5.itertuples(index=False), start=1):
         st.divider()
-        raw = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
-        job_type = rec.job_type or "-"
-        date = raw.job_date or "-"
-        time = f"{raw.start_time} – {raw.end_time}"
-        loc = f"{raw.province}/{raw.district}/{raw.subdistrict}"
-        sal = avg_salary(raw)
+        job = raw_jobs[raw_jobs.job_id == rec.job_id].iloc[0]
+        date = job.job_date or "-"
+        time = f"{job.start_time} – {job.end_time}"
+        loc  = f"{job.province}/{job.district}/{job.subdistrict}"
+        sal  = avg_salary(job)
+
         st.markdown(f"**Job No.{rank}**")
-        st.markdown(f"- **Job Type**: {job_type}")
+        st.markdown(f"- **Job Type**: {rec.job_type}")
         st.markdown(f"- **Date**: {date}")
         st.markdown(f"- **Time**: {time}")
         st.markdown(f"- **Location**: {loc}")
@@ -170,4 +175,5 @@ elif active_seeker_idx is not None:
 # -----------------------------------------------------------------
 st.divider()
 if st.button("🔙 กลับหน้า My Jobs"):
+    st.session_state.pop("selected_job_id", None)
     st.switch_page("pages/list_job.py")
