@@ -5,9 +5,9 @@ import faiss
 from sentence_transformers import SentenceTransformer
 
 # ------------------------------------------------------------------ #
-# 1) Load embedding model (unused for manual scoring)
+# 1) Load embedding model (supports multiple languages, including Thai)
 # ------------------------------------------------------------------ #
-_EMBED_MODEL = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+_EMBED_MODEL = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
 
 # ------------------------------------------------------------------ #
 # 2) Text encoding (include date/time/location)
